@@ -74,11 +74,17 @@ document.addEventListener('touchend', onTouch);
 document.addEventListener('touchcancel', onTouch);
 </script>
 <script>
+function tip(text) {
+    document.getElementById('tip').innerHTML = text;
+}
 function onTap(event) {
-    console.log('event tap');
+    tip('tap');
+}
+function onDoubleTap(event) {
+    tip('double tap');
 }
 function onDrag() {
-    console.log('event drag');
+    tip('drag');
 };
 var events = {
     '.touch': onTap
