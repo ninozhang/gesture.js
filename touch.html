@@ -3,6 +3,7 @@
 <html>
 <head>
 <meta charset=utf-8>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Touch.js</title>
 <script src="lib/lang.js"></script>
 <script src="touch.js"></script>
@@ -18,7 +19,6 @@ body {
 }
 .touch {
     position: relative;
-    margin-top: 200px;
     margin-left: auto;
     margin-right: auto;
     font-size: 30px;
@@ -36,6 +36,16 @@ body {
     height: 40px;
     width: 400px;
 }
+.track {
+    position: relative;
+    margin-top: 10px;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 20px;
+    line-height: 30px;
+    height: 180px;
+    width: 400px;
+}
 </style>
 </head>
 <body>
@@ -43,12 +53,37 @@ body {
     touch me!
 </div>
 <div class="box tip">
-    try to touch~
+    
+</div>
+<div class="box track" id="track">
+    
 </div>
 <script>
+function onTouch(event) {
+    var track = document.getElementById('track');
+    var str = "";
+    var touches = event.touches;
+    for (var i = 0; i < touches.length; i++) {
+        str += touches[i].identifier + ' x:' + touches[i].clientX + ' y:' + touches[i].clientY + '<br>';
+    }
+    track.innerHTML = str;
+}
+document.addEventListener('touchstart', onTouch);
+document.addEventListener('touchmove', onTouch);
+document.addEventListener('touchend', onTouch);
+document.addEventListener('touchcancel', onTouch);
+</script>
+<script>
+function onTap(event) {
+    console.log('event tap');
+}
 function onDrag() {
-
+    console.log('event drag');
 };
+var events = {
+    '.touch': onTap
+};
+touch.on(events);
 </script>
 </body>
 </html>

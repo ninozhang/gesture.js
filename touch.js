@@ -76,31 +76,51 @@
         return t;
     }
 
+
+    /**
+     * 简单的选择器匹配方法
+     */
+    function selectorMatch(selector) {
+        if (!selector) {
+            return [];
+        }
+
+        // 处理 class 和 id
+        var selectorExpr = /([\.#])(.*)/,
+            match = selectorExpr.exec(selector);
+
+        // 处理 tagName
+        if (!match) {
+            match = [selector, null, selector];
+        }
+        return match;
+    }
+
     /**
      * 简单的元素选择器
      */
     function $(selector) {
-        var match = this.match(selector);
+        var matches = selectorMatch(selector);
 
         // 处理 document
-        if (match[2] === 'document') {
+        if (matches[2] === 'document') {
             return [doc];
 
         // 处理 body
-        } else if (match[2] === 'body') {
+        } else if (matches[2] === 'body') {
             return [body];
 
         // 处理 class
-        } if (match[1] === '.') {
+        } if (matches[1] === '.') {
             return doc.getElementsByClassName(match[2]);
 
         // 处理 id
-        } else if (match[1] === '#') {
+        } else if (matches[1] === '#') {
             var el = doc.getElementById(match[2]);
             return el ? [el] : [];
 
         // 处理 tagName
-        } else if (match[1] === selector) {
+        } else if (matches[1] === selector) {
             return doc.getElementsByTagName(match[2]);
         }
     }
@@ -241,6 +261,27 @@
         return touch;
     }
 
+    function parseItem(item) {
+        if (!item) {
+            return;
+        }
+        var fn, context, args;
+        if (_.isFunction(item)) {
+            fn = item;
+        } else if (_.isArray(item)) {
+            fn = itemp[0];
+            if (_.isArray(item[1])) {
+                args = item[1];
+            } else if (_.isObject(item[1])) {
+                context = item[1];
+            }
+            if (_.isArray(item[2])) {
+                args = item[2];
+            }
+        }
+        return {fn: fn, context: context, args: args, options: {}};
+    }
+
     /**
      * 事件监听配置
      * 数据结构
@@ -271,14 +312,14 @@
      *      '.cancel': cancelFn
      *  }[, '#alert'])
      */
-    function on(selectors, proxy, fn, options) {
+    function on(selectors, proxy, fn, options) {console.log('on', selectors, proxy, fn, options);
         if (_.isObject(selectors)) {
             _.each(selectors, function(fn, selector) {
                 on(selector, proxy, fn, options);
             });
         } else if (_.isString(selectors)) {
             eachSelector(selectors, function(type, selector) {
-                matchEvent(selector, proxy, fn, options);
+                bindEvent(type, selector, proxy, fn, options);
             });
         }
         return touch;
@@ -308,14 +349,14 @@
      * 解绑委托在任何元素上的任何响应函数，相当于初始化
      *  off()
      */
-    function off(selectors, proxy, fn) {
+    function off(selectors, proxy, fn) {console.log('off', selectors, proxy, fn);
         if (_.isObject(selectors)) {
             _.each(selectors, function(fn, selector) {
                 off(selector, proxy, fn);
             });
         } else if (_.isString(selectors)) {
             eachSelector(selectors, function(type, selector) {
-                matchEvent(selector, proxy, fn, true);
+                bindEvent(type, selector, proxy, fn, true);
             });
         } else if (selectors === true &&
             (_.isString(proxy) || _.isUndef(proxy))) {
@@ -340,25 +381,25 @@
     /**
      * 绑定元素事件监听
      */
-    function addEvent(proxy) {
+    function addEvent(proxy) {console.log('addEvent', proxy);
         if (!proxy) {
             return;
         }
-        var els = this.$(proxy),
+        var els = $(proxy),
             context = proxyMap.get(proxy);
         if (!els || context) {
             return;
         }
-        context = {};
+        context = {proxy: proxy};
         context.startFn = _.bind(onTouchStart(event), context);
         context.moveFn = _.bind(onTouchMove(event), context);
         context.endFn = _.bind(onTouchEnd(event), context);
         els.forEach(function(el) {
             if (el && el.addEventListener) {
-                el.addEventListener('touchstart', startFn);
-                el.addEventListener('touchmove', moveFn);
-                el.addEventListener('touchend', endFn);
-                el.addEventListener('touchcancel', endFn);
+                el.addEventListener('touchstart', context.startFn);
+                el.addEventListener('touchmove', context.moveFn);
+                el.addEventListener('touchend', context.endFn);
+                el.addEventListener('touchcancel', context.endFn);
             }
         });
         proxyMap.set(proxy, context);
@@ -367,7 +408,7 @@
     /**
      * 解绑元素事件监听
      */
-    function removeEvent(proxy) {
+    function removeEvent(proxy) {console.log('removeEvent', proxy);
         if (!proxy) {
             return;
         }
@@ -376,15 +417,12 @@
         if (!els || !context) {
             return;
         }
-        var startFn = context.startFn;
-        var moveFn = context.moveFn;
-        var endFn = context.endFn;
         els.forEach(function(el) {
             if (el && el.removeEventListener) {
-                el.removeEventListener('touchstart', startFn);
-                el.removeEventListener('touchmove', moveFn);
-                el.removeEventListener('touchend', endFn);
-                el.removeEventListener('touchcancel', endFn);
+                el.removeEventListener('touchstart', context.startFn);
+                el.removeEventListener('touchmove', context.moveFn);
+                el.removeEventListener('touchend', context.endFn);
+                el.removeEventListener('touchcancel', context.endFn);
             }
         });
         proxyMap.remove(proxy);
@@ -394,7 +432,7 @@
      * 更新元素事件监听
      * 如果没有监听就移除，如果还有加入监听则
      */
-    function updateEvent(proxy) {
+    function updateEvent(proxy) {console.log('updateEvent', proxy);
         eventMap.each(function(map, p) {
             if (!proxy || proxy === p) {
                 if (map.size() > 0) {
@@ -410,26 +448,14 @@
      * 分解选择器并遍历
      */
     function eachSelector(selectors, iterator, context) {
-
-    }
-
-    /**
-     * 简单的选择器匹配方法
-     */
-    function match(selector) {
-        if (!selector) {
-            return [];
-        }
-
-        // 处理 class 和 id
-        var selectorExpr = /([\.#])(.*)/,
-            match = selectorExpr.exec(selector);
-
-        // 处理 tagName
-        if (!match) {
-            match = [selector, null, selector];
-        }
-        return match;
+        var type, selector;
+        selectors = selectors.split(',');
+        _.each(selectors, function(item) {
+            item = item.split(' ');
+            type = item.length > 1 ? item[0] : defaults.type;
+            selector = item[1] || item[0];
+            iterator.call(context || this, type, selector);
+        });
     }
 
     /**
@@ -443,7 +469,7 @@
      * 解绑在所有元素所有响应函数
      *  ('.ok', true, undefined, true)
      */
-    function matchEvent(type, selector, proxy, item, options) {
+    function bindEvent(type, selector, proxy, item, options) {console.log('bindEvent', type, selector, proxy, item, options);
         // selector 为空则不处理
         if (!_.isString(selector) || !selector) {
             return;
@@ -460,53 +486,76 @@
             proxy = (proxy || 'document').trim();
         }
 
+        // 解析 item
+        item = parseItem(item);
+        _.extend(item.options, defaults);
+        if (_.isObject(options)) {
+            _.extend(item.options, options);
+        }
+
         // 检查是否已有该 proxy 对应的 map ，没有则创建一个
-        var proxyMap, fns;
-
-        if (item) {
-            proxyMap = eventMap.get(proxy, newMap);
-            
-            typeMap = proxyMap.get(selector, []);
-
-            // 移除 selector 对应的响应函数
-            if (options === true) {
-                var fn = _.isArray(item) ? item[0] : item;
-                fns = without(fns, fn);
-                if (fns.length === 0) {
-                    proxyMap.remove(selector);
+        var selectorMap, typeMap, content,
+            remove = (options === true);
+        // 移除监听
+        if (remove === true) {
+            // 解绑对应的 item
+            if (item) {
+                selectorMap = eventMap.get(proxy);
+                if (!selectorMap) {
+                    return;
                 }
 
-            // 加入 selector 对应的响应函数
-            } else {
-                fns.push(item);
-            }
+                typeMap = selectorMap.get(selector);
+                if (!typeMap) {
+                    return;
+                }
 
-            this.updateEvent(proxy);
+                content = typeMap.get(type);
+                if (!content) {
+                    return;
+                }
 
-        // 移除监听
-        } else if (options === true) {
-            // 解绑 proxy 监听 selector 下所有响应函数
-            if (proxy === true) {
-                this.map.each(function(proxyMap) {
-                    proxyMap.remove(selector);
+                var newContent = [];
+                _.each(content, function(c) {
+                    if (c.fn !== item.fn) {
+                        newContent.push(c);
+                    }
                 });
-                this.updateEvent();
+                content = newContent;
+                typeMap.set(type, newContent);
+
+                updateEvent(proxy);
+
+            // 解绑 proxy 监听 selector 下所有响应函数
+            } else if (proxy === true) {
+                eventMap.each(function(selectorMap) {
+                    selectorMap.remove(selector);
+                });
+                updateEvent();
 
             // 解绑 selector 下所有响应函数
             } else {
-                proxyMap = this.map.get(proxy);
-                if (proxyMap) {
-                    proxyMap.remove(selector);
+                selectorMap = eventMap.get(proxy);
+                if (selectorMap) {
+                    selectorMap.remove(selector);
                 }
-                this.updateEvent(proxy);
+                updateEvent(proxy);
             }
+
+        // 如果有 item
+        } else if (item) {
+            selectorMap = eventMap.get(proxy, newMap);
+            typeMap = selectorMap.get(selector, newMap);
+            content = typeMap.get(type, []);
+            content.push(item);
+            updateEvent(proxy);
         }
     }
 
     /**
      * 向绑定事件监听的元素派发事件
      */
-    function dispatchEvent(event, proxy) {
+    function trigger(type, proxy, options) {console.log('trigger', type, proxy);
         var target = event.target,
             currentTarget = event.currentTarget,
             proxyMap = this.map.get(proxy),
@@ -520,7 +569,7 @@
         // 从事件触发的目标开始向上查找匹配事件监听的节点
         while (target && target !== currentTarget) {
             proxyMap.each(function(fns, selector) {
-                match = this.match(selector);
+                match = selectorMatch(selector);
                 isMatch = false;
                 // 处理 class
                 if (match[1] === '.') {
@@ -572,98 +621,221 @@
      * 记录初始位置
      */
     function onTouchStart(event) {
-        return function(event) {
-            var options = this.options
-                if(opts.preventDefault) evt.preventDefault();
-                if(opts.stopPropagation) evt.stopPropagation();
-            var t = event.touches[0],
-                x = t.clientX,
-                y = t.clientY,
-                now = new Date().getTime(),
-                click = [x, y, now, x, y, now];
-            this.clickMap.set(selector, click);
-
-            touches = new Jester.TouchGroup(evt);
-
-                eventSet.execute("start", touches, evt);
-
-            var delta, fingers, now, touches;
-      now = Date.now();
-      delta = now - (GESTURE.last || now);
-      TOUCH_TIMEOUT && clearTimeout(TOUCH_TIMEOUT);
-      touches = _getTouches(event);
-      fingers = touches.length;
-      FIRST_TOUCH = _fingersPosition(touches, fingers);
-      GESTURE.el = $$(_parentIfText(touches[0].target));
-      GESTURE.fingers = fingers;
-      GESTURE.last = now;
-      if (fingers === 1) {
-        GESTURE.isDoubleTap = delta > 0 && delta <= 250;
-        return setTimeout(_hold, HOLD_DELAY);
-      } else if (fingers === 2) {
-        GESTURE.initial_angle = parseInt(_angle(FIRST_TOUCH), 10);
-        GESTURE.initial_distance = parseInt(_distance(FIRST_TOUCH), 10);
-        GESTURE.angle_difference = 0;
-        return GESTURE.distance_difference = 0;
-      }
-
-      _pos.start = getXYfromEvent(event);
-                _touch_start_time = new Date().getTime();
-                _fingers = countFingers(event);
-                _first = true;
-                _event_start = event;
-
-                // borrowed from jquery offset https://github.com/jquery/jquery/blob/master/src/offset.js
-                var box = element.getBoundingClientRect();
-                var clientTop  = element.clientTop  || document.body.clientTop  || 0;
-                var clientLeft = element.clientLeft || document.body.clientLeft || 0;
-                var scrollTop  = window.pageYOffset || element.scrollTop  || document.body.scrollTop;
-                var scrollLeft = window.pageXOffset || element.scrollLeft || document.body.scrollLeft;
-
-                _offset = {
-                    top: box.top + scrollTop - clientTop,
-                    left: box.left + scrollLeft - clientLeft
-                };
-
-                _mousedown = true;
-
-                // hold gesture
-                gestures.hold(event);
-
-                if(options.prevent_default) {
-                    cancelEvent(event);
+        return function(event) {console.log('touch start', event, this);
+            cancelEvent(event);
+            var proxy = this.proxy,
+                touches = extendTouches(event.touches),
+                fingers = this.fingers = touches.length,
+                doubleTap = false,
+                init = {},
+                last = this.start;
+            if (fingers === 1) {
+                // 判断是否 double tap
+                if (last && last[0] && touches[0].t - last[0].t < defaults.tapMaxInterval) {
+                    doubleTap = true;
                 }
+
+                // 判断是否 hold
+                hold.call(this, event);
+            } else if (fingers === 2) {
+                init.angle = parseInt(angle(touches), 10);
+                init.angleDiff = 0;
+                init.distance = parseInt(distance(touches), 10);
+            }
+            this.start = touches;
+            this.init = init;
+            this.doubleTap = doubleTap;
         };
     }
     /**
      * 更新移动位置
      */
     function onTouchMove(event) {
-        return function(event) {
-            var t = event.touches[0],
-                x = t.clientX,
-                y = t.clientY,
-                now = new Date().getTime(),
-                click = this.clickMap.get(selector);
-            click[3] = x;
-            click[4] = y;
-            click[5] = now;
-            this.clickMap.set(selector, click);
+        return function(event) {console.log('touch move', event);
+            cancelEvent(event);
+            hold.call(this, false);
+            var proxy = this.proxy,
+                touches = extendTouches(event.touches),
+                fingers = this.fingers = touches.length;
+            if (fingers === 1) {
+                if (isSwipe.call(this, event)) {
+                    trigger(SWIPING, proxy);
+                }
+            } else if (fingers === 2) {
+                captureRotate();
+                capturePinch();
+                cancelEvent(event, true);
+            }
         };
     }
+
     /**
      * 判断是否为有效的点击
      */
     function onTouchEnd(event) {
-        return function(event) {
-            var click = this.clickMap.get(selector);
-            if (click &&
-                Math.abs(click[0] - click[3]) < clickThreshold &&
-                Math.abs(click[1] - click[4]) < clickThreshold &&
-                click[5] - click[2] < clickTimeout) {
-                this.dispatchEvent(event, selector);
+        return function(event) {console.log('touch end', event);
+            cancelEvent(event);
+            hold.call(this, false);
+            var proxy = this.proxy,
+                touches = extendTouches(event.touches),
+                fingers = this.fingers = touches.length,
+                start = this.start,
+                doubleTap = this.doubleTap;
+            if (doubleTap) {console.log(DOUBLE_TAP);
+                trigger(DOUBLE_TAP, proxy);
+            } else if (fingers === 1) {
+                if (isSwipe.call(this, event)) {
+                    trigger(SWIPE, proxy);
+                    swipeDirection.call(this, event);
+                } else {console.log(TAP);
+                    trigger(TAP, proxy);
+                }
+            } else if (fingers === 2) {
+
             }
         };
+    }
+    
+    /**
+     * 取消事件
+     */
+    function cancelEvent(event, force) {
+        if(defaults.preventDefault === true || force === true) {
+            event.preventDefault();
+        }
+        if(defaults.stopPropagation === true || force === true) {
+            event.stopPropagation();
+        }
+    }
+
+    /**
+     * 判断是否是 swipe
+     */
+    function isSwipe(event) {
+        var horizontal,
+            vertical,
+            time,
+            swipe = false,
+            touches = extendTouches(event.touches),
+            last = this.start;
+        if (touches && touches[0] && last && last[0]) {
+            horizontal = Math.abs(last[0].x - touches[0].x) > defaults.swipeMinDistance;
+            vertical = Math.abs(last[0].y - touches[0].y) > defaults.swipeMinDistance;
+            time = (touches[0].t - last[0].t) > defaults.swipeTime;
+            swipe = time && (horizontal || vertical);
+        }
+        return swipe;
+    }
+
+    /**
+     * 捕获旋转
+     */
+    function swipeDirection(event, start, end) {
+        if (!start || !start[0] || !end || !end[0]) {
+            return;
+        }
+        var x1 = start[0].x,
+            y1 = start[0].y,
+            x2 = end[0].x,
+            y2 = end[0].y,
+            xDelta = Math.abs(x1 - x2),
+            yDelta = Math.abs(y1 - y2),
+            proxy = this.proxy,
+            type;
+        if (xDelta >= yDelta) {
+            if (x1 - x2 > 0) {
+                type = SWIPE_LEFT;
+            } else {
+                type = SWIPE_RIGHT;
+            }
+        } else {
+            if (y1 - y2 > 0) {
+                type = SWIPE_UP;
+            } else {
+                type = SWIPE_DOWN;
+            }
+        }
+        trigger(type, proxy);
+    }
+
+    /**
+     * 捕获旋转
+     */
+    function captureRotate(event) {
+    }
+
+    /**
+     * 捕获旋转
+     */
+    function capturePinch(event) {
+        var diff, distance;
+        distance = parseInt(_distance(CURRENT_TOUCH), 10);
+        diff = GESTURE.initial_distance - distance;
+        if (Math.abs(diff) > 10) {
+        GESTURE.distance_difference = diff;
+        return _trigger("pinching", {
+        distance: diff
+        });
+        }
+    }
+
+    /**
+     * hold 定时器
+     */
+    function hold(event) {
+        clearTimeout(this.holdTimer);
+        if (event) {
+            var proxy = this.proxy;
+            this.holdTimer = setTimeout(function() {
+                trigger(HOLD, proxy);
+            }, defaults.holdTimeout);
+        }
+    }
+
+    /**
+     * 扩展 touch 信息
+     */
+    function extendTouches(touches) {
+        var ts = [],
+            el, id, x, y, t;
+        _.each(touches, function(touch) {
+            el = touch.target;
+            id = touch.identifier;
+            x = touch.clientX;
+            y = touch.clientY;
+            t = now();
+            _.extend(touch, {el: el, id: id, x: x, y: y, t: t});
+            ts.push(touch);
+        });
+        return ts;
+    }
+
+    /**
+     * 扩展 touch 信息
+     */
+    function angle(touches) {
+        if (!touches || touches.length < 2) {
+            return 0;
+        }
+        var t1 = touches[0],
+            t2 = touches[1],
+            angle = Math.atan((t2.y - t1.y) * -1 / (t2.x - t1.x)) * (180 / Math.PI);
+        if (angle < 0) {
+            angle += 180;
+        }
+        return angle;
+    }
+
+    /**
+     * 扩展 touch 信息
+     */
+    function distance(touches) {
+        if (!touches || touches.length < 2) {
+            return 0;
+        }
+        var t1 = touches[0],
+            t2 = touches[1];
+        return Math.sqrt((t2.x - t1.x) * (t2.x - t1.x) + (t2.y - t1.y) * (t2.y - t1.y)) * -1;
     }
 
     window.touch = touch;
