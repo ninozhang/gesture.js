@@ -9,55 +9,44 @@
 <script src="touch.js"></script>
 <style type="text/css">
 body {
-    text-align: center;
+    margin: 0;
+    padding: 0;
+    font-family: 'Arial';
 }
 .box {
     background-color: #eee;
-    color: #333;
     text-align: center;
     text-shadow: 0px 1px #fff;
-}
-.touch {
-    position: relative;
-    margin-left: auto;
-    margin-right: auto;
-    font-size: 30px;
-    line-height: 200px;
-    height: 200px;
-    width: 400px;
+    width: 100%;
 }
 .tip {
-    position: relative;
+    font-size: 40px;
+    line-height: 60px;
+    height: 60px;
+    color: #666;
+}
+.touch {
     margin-top: 10px;
-    margin-left: auto;
-    margin-right: auto;
-    font-size: 20px;
-    line-height: 40px;
-    height: 40px;
-    width: 400px;
+    font-size: 30px;
+    line-height: 260px;
+    height: 260px;
+    color: #999;
 }
 .track {
-    position: relative;
     margin-top: 10px;
-    margin-left: auto;
-    margin-right: auto;
     font-size: 20px;
     line-height: 30px;
-    height: 180px;
-    width: 400px;
+    height: 80px;
+    color: #999;
 }
 </style>
 </head>
 <body>
+<div class="box tip" id="tip"></div>
 <div class="box touch">
     touch me!
 </div>
-<div class="box tip">
-    
-</div>
-<div class="box track" id="track">
-    
-</div>
+<div class="box track" id="track"></div>
 <script>
 function onTouch(event) {
     var track = document.getElementById('track');
@@ -77,19 +66,101 @@ document.addEventListener('touchcancel', onTouch);
 function tip(text) {
     document.getElementById('tip').innerHTML = text;
 }
+function onDefaultTap(event) {
+    tip();
+}
 function onTap(event) {
     tip('tap');
 }
 function onDoubleTap(event) {
     tip('double tap');
 }
+function onHold(event) {
+    tip('hold');
+}
+function onSwipe() {
+    tip('swipe');
+}
+function onSwiping() {
+    tip('swiping');
+}
+function onSwipeLeft() {
+    tip('swipeLeft');
+}
+function onSwipeRight() {
+    tip('swipeRight');
+}
+function onSwipeUp() {
+    tip('swipeUp');
+}
+function onSwipeDown() {
+    tip('swipeDown');
+}
 function onDrag() {
     tip('drag');
+}
+function onDragLeft() {
+    tip('dragLeft');
+}
+function onDragRight() {
+    tip('dragRight');
+}
+function onDragUp() {
+    tip('dragUp');
+}
+function onDragDown() {
+    tip('dragDown');
+}
+function onPinch() {
+    tip('pinch');
+}
+function onPinching() {
+    tip('pinching');
+}
+function onPinchIn() {
+    tip('pinchIn');
+}
+function onPinchOut() {
+    tip('pinchOut');
+}
+function onRotate() {
+    tip('rotate');
+}
+function onRotateLeft() {
+    tip('rotate left');
+}
+function onRotateRight() {
+    tip('rotate left');
+}
+var conf = {
+    preventDefault: true,
+    stopPropagation: true
 };
 var events = {
-    '.touch': onTap
+    '.touch': onDefaultTap,
+    'tap .touch': onTap,
+    'doubleTap .touch': onDoubleTap,
+    'hold .touch': onHold,
+    'swipe .touch': onSwipe,
+    'swiping .touch': onSwiping,
+    'swipeLeft .touch': onSwipeLeft,
+    'swipeRight .touch': onSwipeRight,
+    'swipeUp .touch': onSwipeUp,
+    'swipeDown .touch': onSwipeDown,
+    'drag .touch': onDrag,
+    'dragLeft .touch': onDragLeft,
+    'dragRight .touch': onDragRight,
+    'dragUp .touch': onDragUp,
+    'dragDown .touch': onDragDown,
+    'pinch .touch': onPinch,
+    'pinching .touch': onPinching,
+    'pinchIn .touch': onPinchIn,
+    'pinchOut .touch': onPinchOut,
+    'rotate .touch': onRotate,
+    'rotateLeft .touch': onRotateLeft,
+    'rotateRight .touch': onRotateRight,
 };
-touch.on(events);
+touch.config(conf).on(events);
 </script>
 </body>
 </html>
