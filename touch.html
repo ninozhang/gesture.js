@@ -22,7 +22,7 @@ body {
 .tip {
     font-size: 40px;
     line-height: 60px;
-    height: 60px;
+    height: 80px;
     color: #666;
 }
 .touch {
@@ -36,7 +36,7 @@ body {
     margin-top: 10px;
     font-size: 20px;
     line-height: 30px;
-    height: 80px;
+    height: 60px;
     color: #999;
 }
 </style>
@@ -64,10 +64,11 @@ document.addEventListener('touchcancel', onTouch);
 </script>
 <script>
 function tip(text) {
+    console.log('*tip*:' + text);
     document.getElementById('tip').innerHTML = text;
 }
 function onDefaultTap(event) {
-    tip();
+    tip('default tap');
 }
 function onTap(event) {
     tip('tap');
@@ -85,31 +86,31 @@ function onSwiping() {
     tip('swiping');
 }
 function onSwipeLeft() {
-    tip('swipeLeft');
+    tip('swipe left');
 }
 function onSwipeRight() {
-    tip('swipeRight');
+    tip('swipe right');
 }
 function onSwipeUp() {
-    tip('swipeUp');
+    tip('swipe up');
 }
 function onSwipeDown() {
-    tip('swipeDown');
+    tip('swipe down');
 }
 function onDrag() {
     tip('drag');
 }
 function onDragLeft() {
-    tip('dragLeft');
+    tip('drag left');
 }
 function onDragRight() {
-    tip('dragRight');
+    tip('drag right');
 }
 function onDragUp() {
-    tip('dragUp');
+    tip('drag up');
 }
 function onDragDown() {
-    tip('dragDown');
+    tip('drag down');
 }
 function onPinch() {
     tip('pinch');
@@ -118,10 +119,10 @@ function onPinching() {
     tip('pinching');
 }
 function onPinchIn() {
-    tip('pinchIn');
+    tip('pinch in');
 }
 function onPinchOut() {
-    tip('pinchOut');
+    tip('pinch out');
 }
 function onRotate() {
     tip('rotate');
@@ -130,7 +131,7 @@ function onRotateLeft() {
     tip('rotate left');
 }
 function onRotateRight() {
-    tip('rotate left');
+    tip('rotate right');
 }
 var conf = {
     preventDefault: true,
