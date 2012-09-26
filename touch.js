@@ -193,15 +193,13 @@
             drag: true,
             dragVertical: true,
             dragHorizontal: true,
-            // 触发拖动最小的距离
             dragMinDistance: 20, // pixels
 
-            // pinch zoom and rotation
             pinch: true,
             pinchMinDistance: 10, // pixels
 
             rotate: true,
-            rotateMinAngle: 15, // degrees
+            rotateMinAngle: 10, // degrees
 
             tap: true,
             tapMaxDistance: 10,
@@ -257,6 +255,9 @@
         return touch;
     }
 
+    /**
+     * 解析 item
+     */
     function parseItem(item) {
         if (!item) {
             return;
@@ -285,7 +286,8 @@
      *      proxy: {
      *          type: {
      *              selector: [
-     *                  {fn, context, args}
+     *                  {fn, context, args},
+     *                  {fn, context}
      *              ]
      *          }
      *     }
@@ -297,6 +299,8 @@
      * 委托响应函数
      *
      * 将元素的响应函数委托给某个上级
+     *  on(selectors, proxy)
+     *  on(selector, proxy)
      *              [fn, context]
      *              [fn, args]
      *              [fn, context, args]
