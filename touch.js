@@ -11,7 +11,7 @@
     var OUT = 'out';
 
     var DRAG = 'drag';
-    var DRAGING = 'draging';
+    var DRAGGING = 'dragging';
     var DOUBLE_TAP = 'doubleTap';
     var HOLD= 'hold';
     var ROTATE = 'rotate';
@@ -19,42 +19,13 @@
     var SWIPE = 'swipe';
     var SWIPING = 'swiping';
     var TAP = 'tap';
+    var TAP2 = 'tap2';
     var TOUCH = 'touch';
     var PINCH = 'pinch';
     var PINCHING = 'pinching';
 
     var doc = document,
-        body = doc.body,
-        eventMethods = {
-            preventDefault: 'isDefaultPrevented',
-            stopImmediatePropagation: 'isImmediatePropagationStopped',
-            stopPropagation: 'isPropagationStopped'
-        },
-        returnTrue = function () {
-            return true;
-        },
-        returnFalse = function () {
-            return false;
-        };
-
-    function eventProxy(event) {
-        var proxy = _.extend({
-                originalEvent: event
-            }, event),
-            iterator = function (name, predicate) {
-                proxy[name] = function () {
-                    this[predicate] = returnTrue;
-                    return event[name].apply(event, arguments);
-                };
-                proxy[predicate] = returnFalse;
-            };
-        for (var key in eventMethods) {
-            if (iterator.call(this, eventMethods[key], key, eventMethods) === {}) {
-                break;
-            }
-        }
-        return proxy;
-    }
+        body = doc.body;
 
     /**
      * 首字母大写
@@ -76,6 +47,21 @@
         });
         return t;
     }
+    
+    /**
+     * 取消事件默认方法或者冒泡
+     */
+    function cancelEvent(event, force) {
+        if (defaults.preventDefault === true || force === true) {
+            event.preventDefault();
+        }
+        if (defaults.stopPropagation === true || force === true) {
+            event.stopPropagation();
+        }
+        if (defaults.stopImmediatePropagation === true || force === true) {
+            event.stopImmediatePropagation();
+        }
+    }
 
     /**
      * 简单的选择器匹配方法
@@ -87,13 +73,13 @@
 
         // 处理 class 和 id
         var selectorExpr = /([\.#])(.*)/,
-            match = selectorExpr.exec(selector);
+            matches = selectorExpr.exec(selector);
 
         // 处理 tagName
-        if (!match) {
-            match = [selector, null, selector];
+        if (!matches) {
+            matches = [selector, null, selector];
         }
-        return match;
+        return matches;
     }
 
     /**
@@ -125,12 +111,11 @@
         }
     }
 
+    /**
+     * 当前时间
+     */
     function now() {
         return new Date();
-    }
-
-    function usec(time) {
-        return (time ? new Date(time) : now()).getTime();
     }
 
     function Map() {
@@ -195,34 +180,39 @@
      * 默认配置
      */
     var defaults = {
-            // prevent the default event or not... might be buggy when false
+            type: TAP,
+
             preventDefault: false,
             stopPropagation: false,
-            type: TAP,
-            css_hacks: true,
+            stopImmediatePropagation: false,
 
             swipe: true,
-            swipeMaxTime: 200,   // ms
+            swipeMaxTime: 350, // ms
             swipeMinDistance : 20, // pixels
 
             drag: true,
             dragVertical: true,
             dragHorizontal: true,
-            // minimum distance before the drag event starts
+            // 触发拖动最小的距离
             dragMinDistance: 20, // pixels
 
             // pinch zoom and rotation
-            transform: true,
-            scaleTreshold: 0.1,
+            pinch: true,
+            pinchMinDistance: 10, // pixels
+
+            rotate: true,
             rotateMinAngle: 15, // degrees
 
-            pinchMinDistance: 10,
-
             tap: true,
-            tapDouble: true,
-            tapMaxInterval: 300,
             tapMaxDistance: 10,
-            tapDoubleDistance: 20,
+
+            tap2: true,
+            tap2MaxInterval: 150,
+            tap2MaxDistance: 15,
+
+            doubleTap: true,
+            doubleTapMaxInterval: 300,
+            doubleTapMaxDistance: 20,
 
             hold: true,
             holdTimeout: 350
@@ -629,7 +619,7 @@
 
                 if (isMatch) {
                     targetFound = true;
-                    _.each(items, function(item) {
+                    _.each(items, function(item) {console.log(items);
                         var fn = item.fn,
                             context = item.context || target;
                         fn.call(context, options);
@@ -651,25 +641,27 @@
         return function(event) {//console.log('touch start', event, this);
             cancelEvent(event);
             var proxy = this.proxy,
-                last = this.start,
                 start = extractTouches(event.touches),
-                fingers = this.fingers = start.length,
-                doubleTap = false,
-                angle = 0,
-                distance = 0;
+                fingers = start.length,
+                doubleTap = false;
+
+            // 重置手势
+            resetGesture.call(this, {start: start, prev: start, current: start, fingers: fingers});
+
             if (fingers === 1) {
                 // 判断是否 double tap
-                if (last && last[0] && start[0].t - last[0].t < defaults.tapMaxInterval) {
-                    doubleTap = true;
+                if (defaults.doubleTap && isDoubleTap.call(this, event)) {
+                    this.doubleTap = true;
                 }
 
                 // 判断是否 hold
-                hold.call(this, event);
+                if (defaults.hold) {
+                    hold.call(this, event);
+                }
             } else if (fingers === 2) {
-                angle = parseInt(detectAngle(start), 10);
-                distance = parseInt(detectDistance(start), 10);
+                this.angle = parseInt(detectAngle(start), 10);
+                this.distance = parseInt(detectDistance(start), 10);
             }
-            reset.call(this, {start: start, current: start, angle: angle, distance: distance, doubleTap: doubleTap});
         };
     }
 
@@ -680,26 +672,30 @@
         return function(event) {//console.log('touch move', event);
             cancelEvent(event);
             hold.call(this, false);
+            this.prev = this.current;
             var proxy = this.proxy,
+                start = this.start,
                 current = this.current = extractTouches(event.touches),
                 fingers = current.length;
             if (fingers === this.fingers) {
                 if (fingers === 1) {
-                    if (isSwipe.call(this, event)) {
-                        trigger(SWIPING, {event: event, proxy: proxy});
+                    if (defaults.swipe && (this.swiping = isSwipe.call(this, event))) {
+                        swping.call(this, event);
+                    } else if(defaults.drag && this.hold) {
+                        this.drag = true;
+                        dragging.call(this, event);
                     }
                 } else if (fingers === 2) {
-                    var captured = false;
-                    if (captureRotate.call(this, event)) {
-                        captured = true;
-                    }
-                    if (capturePinch.call(this, event)) {
-                        captured = true;
-                    }
                     cancelEvent(event, true);
+                    this.rotate = defaults.rotate && captureRotate.call(this, event);
+                    this.pinch = defaults.pinch && capturePinch.call(this, event);
+                    if (!this.rotate && !this.pinch && defaults.drag) {
+                        this.drag = true;
+                        dragging.call(this, event);
+                    }
                 }
             } else {
-                // 清空手势
+                resetGesture();
             }
         };
     }
@@ -714,34 +710,31 @@
             var proxy = this.proxy,
                 start = this.start,
                 current = this.current,
-                fingers = this.fingers,
-                doubleTap = this.doubleTap,
-                angleDiff = this.angleDiff,
-                distanceDiff = this.distanceDiff;console.log('fingers:' + fingers);
-            if (this.hold) {
-                console.log('hold:' + this.hold);
-            } else if (doubleTap) {
-                trigger(DOUBLE_TAP, {event: event, proxy: proxy});
-            } else if (fingers === 1) {
-                if (isSwipe.call(this, event)) {
+                fingers = this.fingers;
+            if (fingers === 1) {
+                if (defaults.doubleTap && this.doubleTap) {
+                    doubleTap.call(this, event);
+                } else if (defaults.swipe && isSwipe.call(this, event)) {
                     swipe.call(this, event);
-                } else {
-                    trigger(TAP, {event: event, proxy: proxy});
+                } else if (defaults.drag && this.drag) {
+                    drag.call(this, event);
+                } else if (defaults.tap && !this.hold && isTap.call(this, event)) {
+                    tap.call(this, event);
                 }
             } else if (fingers === 2) {
-                var captured = false;
-                if (angleDiff !== 0) {
-                    trigger(ROTATE, {event: event, proxy: proxy, angle: angleDiff});
-                    rotate.call(this, event);
-                    captured = true;
+                if (defaults.tap2 && isTap2.call(this, event)) {
+                    this.tap2 = true;
+                    tap2.call(this, event);
                 }
-                if (distanceDiff !== 0) {
-                    pinch.call(this, event);
-                    captured = true;
-                }
-                if (!captured && current[0]) {console.log('check drag');
-                    if (Math.abs(start[0].x - current[0].x) > defaults.dragMinDistance ||
-                        Math.abs(start[0].y - current[0].y) > defaults.dragMinDistance) {
+                if (!this.tap2) {
+                    if (defaults.rotate && this.rotate) {
+                        rotate.call(this, event);
+                    }
+                    if (defaults.pinch && this.pinch) {
+                        pinch.call(this, event);
+                    }
+                    if (defaults.drag &&
+                        ((!this.pinch && !this.rotate && isDrag.call(this, event)) || this.drag)) {
                         drag.call(this, event);
                     }
                 }
@@ -752,44 +745,126 @@
     /**
      * 重置
      */
-    function reset(options) {
+    function resetGesture(options) {
+        if (!options) {
+            options = {};
+        }
+        this.last = this.start || [];
         this.start = options.start || [];
-        this.current = options.start || [];
+        this.prev = options.prev || [];
+        this.current = options.current || [];
+        this.fingers = options.fingers || 0;
         this.angle = options.angle || 0;
+        this.lastAngle = options.angle || 0;
         this.angleDiff = 0;
         this.distance = options.distance || 0;
+        this.lastDistance = options.distance || 0;
         this.distanceDiff = 0;
+        this.tap2 = false;
         this.doubleTap = options.doubleTap || false;
+        this.doubleTapInterval = options.doubleTapInterval || 0;
+        this.doubleTapDistance = options.doubleTapDistance || 0;
+        this.scale = 1;
         this.hold = false;
+        this.drag = false;
+        this.pinch = false;
+        this.rotate = false;
     }
-    
+
     /**
-     * 取消事件
+     * 判断是否是 tap
      */
-    function cancelEvent(event, force) {
-        if(defaults.preventDefault === true || force === true) {//console.log('cancel default');
-            event.preventDefault();
+    function isTap(event) {
+        var start = this.start,
+            current = this.current,
+            d = Math.abs(detectDistance(start, current)) < defaults.tapMaxDistance;
+        return d;
+    }
+
+    /**
+     * 判断是否是 tap2
+     */
+    function isTap2(event) {
+        var start = this.start,
+            current = this.current,
+            d = Math.abs(detectDistance(start, current)) < defaults.tap2MaxDistance,
+            t = detectInterval(start, current) <= defaults.tap2MaxInterval;
+        return d && t;
+    }
+
+    /**
+     * 判断是否是 double tap
+     */
+    function isDoubleTap(event) {
+        var last = this.last,
+            start = this.start,
+            doubleTapInterval,
+            doubleTapDistance;
+        if (last && last[0]) {
+            doubleTapInterval = detectInterval(last, start);
+            doubleTapDistance = Math.abs(detectDistance(start, last));
+            if (doubleTapInterval  < defaults.doubleTapMaxInterval &&
+                doubleTapDistance < defaults.doubleTapMaxDistance) {
+                this.doubleTapInterval = doubleTapInterval;
+                this.doubleTapDistance = doubleTapDistance;
+                return true;
+            }
         }
-        if(defaults.stopPropagation === true || force === true) {//console.log('cancel propagation');
-            event.stopPropagation();
-        }
+        return false;
     }
 
     /**
      * 判断是否是 swipe
      */
     function isSwipe(event) {
-        var horizontal, vertical, time,
-            swipe = false,
+        var start = this.start,
+            current = this.current,
+            d = Math.abs(detectDistance(start, current)) > defaults.swipeMinDistance,
+            t = detectInterval(start, current) <= defaults.swipeMaxTime;
+        return d && t;
+    }
+
+    /**
+     * 判断是否是 drag
+     */
+    function isDrag(event) {
+        var start = this.start,
+            current = this.current,
+            d = Math.abs(detectDistance(start, current)) > defaults.dragMinDistance;
+        return d;
+    }
+
+    /**
+     * tap
+     */
+    function tap(event) {
+        var proxy = this.proxy,
             start = this.start,
-            current = this.current;
-        if (current && current[0] && start && start[0]) {
-            horizontal = Math.abs(start[0].x - current[0].x) > defaults.swipeMinDistance;
-            vertical = Math.abs(start[0].y - current[0].y) > defaults.swipeMinDistance;
-            time = (current[0].t - start[0].t) <= defaults.swipeMaxTime;
-            swipe = time && (horizontal || vertical);
-        }
-        return swipe;
+            options = {event: event, proxy: proxy, touches: start};
+        trigger(TAP, options);
+    }
+
+    /**
+     * tap2
+     */
+    function tap2(event) {
+        var proxy = this.proxy,
+            start = this.start,
+            distance = detectDistance(start[0], start[1]),
+            options = {event: event, proxy: proxy, distance: distance, touches: start};
+        trigger(TAP2, options);
+    }
+
+    /**
+     * doubleTap
+     */
+    function doubleTap(event) {
+        var proxy = this.proxy,
+            start = this.start,
+            interval = this.doubleTapInterval,
+            distance = this.doubleTapDistance,
+            options = {event: event, proxy: proxy, touches: start, distance: distance, interval: interval, touches: start};
+        trigger(DOUBLE_TAP, options);
     }
 
     /**
@@ -799,10 +874,26 @@
         var proxy = this.proxy,
             start = this.start,
             current = this.current,
-            d = detectDirection(start, current),
-            options = {event: event, proxy: proxy, direction: d};
+            distance = detectDistance(start, current),
+            direction = detectDirection(start, current),
+            options = {event: event, proxy: proxy, direction: direction, distance: distance, touches: start};
         trigger(DRAG, options);
-        trigger(DRAG + capFirst(d), options);
+        trigger(DRAG + capFirst(direction), options);
+    }
+
+    /**
+     * drag
+     */
+    function dragging(event) {
+        var proxy = this.proxy,
+            start = this.start,
+            prev = this.prev,
+            current = this.current,
+            distance = detectDistance(start, current),
+            direction = detectDirection(start, current),
+            delta = detectDistance(prev, current),
+            options = {event: event, proxy: proxy, direction: direction, distance: distance, delta: delta, touches: start};
+        trigger(DRAGGING, options);
     }
 
     /**
@@ -812,10 +903,26 @@
         var proxy = this.proxy,
             start = this.start,
             current = this.current,
-            d = detectDirection(start, current),
-            options = {event: event, proxy: proxy, direction: d};
+            distance = detectDistance(start, current),
+            direction = detectDirection(start, current),
+            options = {event: event, proxy: proxy, direction: direction, distance: distance, touches: start};
         trigger(SWIPE, options);
-        trigger(SWIPE + capFirst(d), options);
+        trigger(SWIPE + capFirst(direction), options);
+    }
+
+    /**
+     * swiping
+     */
+    function swping(event) {
+        var proxy = this.proxy,
+            start = this.start,
+            prev = this.prev,
+            current = this.current,
+            distance = detectDistance(start, current),
+            direction = detectDirection(start, current),
+            delta = detectDistance(prev, current),
+            options = {event: event, proxy: proxy, direction: direction, distance: distance, delta: delta, touches: start};
+        trigger(SWIPING, options);
     }
 
     /**
@@ -824,10 +931,10 @@
     function rotate(event) {
         var proxy = this.proxy,
             angleDiff = this.angleDiff,
-            d = this.angleDiff > 0 ? RIGHT : LEFT,
-            options = {event: event, proxy: proxy, angle: angleDiff, direction: d};
+            direction = this.angleDiff > 0 ? RIGHT : LEFT,
+            options = {event: event, proxy: proxy, angle: angleDiff, direction: direction};
         trigger(ROTATE, options);
-        trigger(ROTATE + capFirst(d), options);
+        trigger(ROTATE + capFirst(direction), options);
     }
 
     /**
@@ -836,44 +943,41 @@
     function pinch(event) {
         var proxy = this.proxy,
             distanceDiff = this.distanceDiff,
-            d = distanceDiff > 0 ? OUT : IN,
-            options = {event: event, proxy: proxy, distance: distanceDiff, direction: d};
+            scale = this.scale,
+            direction = distanceDiff > 0 ? OUT : IN,
+            options = {event: event, proxy: proxy, distance: distanceDiff, direction: direction, scale: scale};
         trigger(PINCH, options);
         trigger(PINCH + capFirst(d), options);
-    }
-
-    /**
-     * 捕获拖动
-     */
-    function captureDrag(event) {
-        
     }
 
     /**
      * 捕获旋转
      */
     function captureRotate(event) {
-        var angle, diff, i, symbol,
+        var angle, diff, delta, i, symbol, direction,
             proxy = this.proxy,
             current = this.current,
             captured = false;
         angle = parseInt(detectAngle(current), 10);
         diff = parseInt(this.angle - angle, 10);
-        if (Math.abs(diff) > defaults.rotateMinAngle ||
-            this.angleDiff !== 0) {
-            i = 0;
-            symbol = this.angleDiff < 0 ? "-" : "+";
-            while (Math.abs(diff - this.angleDiff) > 90 &&
-                i++ < 10) {
-                if (symbol === '+') {
-                    diff += 180;
-                } else {
-                    diff -= 180;
-                }
+        symbol = this.angleDiff < 0 ? "-" : "+";
+        i = 0;
+        while (Math.abs(diff - this.angleDiff) > 90 &&
+            i++ < 10) {
+            if (symbol === '+') {
+                diff += 180;
+            } else {
+                diff -= 180;
             }
-            diff = parseInt(diff, 10);
+        }
+        diff = parseInt(diff, 10);
+        delta = this.lastAngle - angle;
+        if ((Math.abs(diff) > defaults.rotateMinAngle || this.angleDiff !== 0) &&
+            delta !== 0) {
+            this.lastAngle = angle;
             this.angleDiff = diff;
-            trigger(ROTATING, {event: event, proxy: proxy, angle: diff});
+            direction = diff > 0 ? RIGHT : LEFT;
+            trigger(ROTATING, {event: event, proxy: proxy, direction: direction, angle: diff, delta: delta});
             captured = true;
         }
         return captured;
@@ -883,15 +987,20 @@
      * 捕获旋转
      */
     function capturePinch(event) {
-        var distance, diff,
+        var distance, diff, delta, scale, direction,
             proxy = this.proxy,
             current = this.current,
             captured = false;
         distance = parseInt(detectDistance(current), 10);
-        diff = this.distance - distance;
-        if (Math.abs(diff) > defaults.pinchMinDistance) {
+        diff = distance - this.distance;
+        delta = distance - this.lastDistance;
+        if (Math.abs(diff) > defaults.pinchMinDistance &&
+            delta !== 0) {
+            this.lastDistance = distance;
             this.distanceDiff = diff;
-            trigger(PINCHING, {event: event, proxy: proxy, distance: diff});
+            this.scale = scale = Math.abs(distance) / Math.abs(this.distance);
+            direction = diff > 0 ? OUT : IN;
+            trigger(PINCHING, {event: event, proxy: proxy, direction: direction, distance: diff, delta: delta, scale: scale});
             captured = true;
         }
         return captured;
@@ -904,17 +1013,19 @@
         clearTimeout(this.holdTimer);
         if (event) {
             var that = this,
-                proxy = this.proxy;
+                proxy = this.proxy,
+                start = this.start,
+                options = {event: event, proxy: proxy, touches: start};
             this.holdTimer = setTimeout(function() {
                 cancelEvent(event, true);
                 that.hold = true;
-                trigger(HOLD, {event: event, proxy: proxy});
+                trigger(HOLD, options);
             }, defaults.holdTimeout);
         }
     }
 
     /**
-     * 扩展 touch 信息
+     * 提取 touch 信息
      */
     function extractTouches(touches) {
         var ts = [],
@@ -933,13 +1044,19 @@
     /**
      * 检测角度
      */
-    function detectAngle(touches) {
-        if (!touches || touches.length < 2) {
-            return 0;
+    function detectAngle(start, end) {
+        var t1, t2;
+        if (!end) {
+            t1 = start[0];
+            t2 = start[1];
+        } else if (start.length) {
+            t1 = start[0];
+            t2 = end[0];
+        } else {
+            t1 = start;
+            t2 = end;
         }
-        var t1 = touches[0],
-            t2 = touches[1],
-            dx = t2.x - t1.x,
+        var dx = t2.x - t1.x,
             dy = t2.y - t1.y,
             angle = Math.atan((dy) * -1 / (dx)) * (180 / Math.PI);
         if (angle < 0) {
@@ -951,16 +1068,21 @@
     /**
      * 检测距离
      */
-    function detectDistance(touches) {
-        if (!touches || touches.length < 2) {
-            return 0;
+    function detectDistance(start, end) {
+        var t1, t2;
+        if (!end) {
+            t1 = start[0];
+            t2 = start[1];
+        } else if (start.length) {
+            t1 = start[0];
+            t2 = end[0];
+        } else {
+            t1 = start;
+            t2 = end;
         }
-        var t1 = touches[0],
-            t2 = touches[1],
-            dx = t2.x - t1.x,
-            dy = t2.y - t1.y,
-            distance = Math.sqrt(dx * dx + dy * dy) * -1;
-        return distance;
+        var dx = t2.x - t1.x,
+            dy = t2.y - t1.y;
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
     /**
@@ -974,11 +1096,11 @@
             y1 = start[0].y,
             x2 = end[0].x,
             y2 = end[0].y,
-            xDelta = Math.abs(x1 - x2),
-            yDelta = Math.abs(y1 - y2),
+            dx = Math.abs(x1 - x2),
+            dy = Math.abs(y1 - y2),
             proxy = this.proxy,
             d;
-        if (xDelta >= yDelta) {
+        if (dx >= dy) {
             if (x1 - x2 > 0) {
                 d = LEFT;
             } else {
@@ -992,6 +1114,24 @@
             }
         }
         return d;
+    }
+
+    /**
+     * 检测时间间隔
+     */
+    function detectInterval(start, end) {
+        var t1, t2;
+        if (!end) {
+            t1 = start[0];
+            t2 = start[1];
+        } else if (start.length) {
+            t1 = start[0];
+            t2 = end[0];
+        } else {
+            t1 = start;
+            t2 = end;
+        }
+        return t2.t - t1.t;
     }
 
     window.touch = touch;

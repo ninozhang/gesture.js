@@ -20,10 +20,15 @@ body {
     width: 100%;
 }
 .tip {
-    font-size: 40px;
-    line-height: 60px;
-    height: 80px;
+    font-size: 38px;
+    line-height: 48px;
+    height: 48px;
     color: #666;
+}
+.subtip {
+    font-size: 14px;
+    line-height: 24px;
+    color: #999;
 }
 .touch {
     margin-top: 10px;
@@ -42,16 +47,19 @@ body {
 </style>
 </head>
 <body>
-<div class="box tip" id="tip"></div>
+<div class="box tip" id="tip">
+    ...
+</div>
+<div class="box subtip" id="subtip"></div>
 <div class="box touch">
-    touch me!
+    戳我!
 </div>
 <div class="box track" id="track"></div>
 <script>
-function onTouch(event) {
+function onTouch(e) {
     var track = document.getElementById('track');
     var str = "";
-    var touches = event.touches;
+    var touches = e.touches;
     for (var i = 0; i < touches.length; i++) {
         str += touches[i].identifier + ' x:' + touches[i].clientX + ' y:' + touches[i].clientY + '<br>';
     }
@@ -63,83 +71,102 @@ document.addEventListener('touchend', onTouch);
 document.addEventListener('touchcancel', onTouch);
 </script>
 <script>
-function tip(text) {
+function tip(text, sub) {
+    sub || (sub = '');
     console.log('*tip*:' + text);
+    console.log('*sub*:' + sub);
     document.getElementById('tip').innerHTML = text;
+    document.getElementById('subtip').innerHTML = sub;
 }
-function onDefaultTap(event) {
+function onDefaultTap(e) {
     tip('default tap');
 }
-function onTap(event) {
-    tip('tap');
+function onTap(e) {console.log(e);
+    tip('tap', 'x:' + e.touches[0].x + ' y:' + e.touches[0].y);
 }
-function onDoubleTap(event) {
-    tip('double tap');
+function onTap2(e) {
+    tip('2 fingers tap', 'distance:' + e.distance + ' x:' + e.touches[0].x + ' y:' + e.touches[0].y);
 }
-function onHold(event) {
-    tip('hold');
+function onDoubleTap(e) {
+    tip('double tap', 'interval:' + e.interval + ' distance:' + e.distance + ' x:' + e.touches[0].x + ' y:' + e.touches[0].y);
 }
-function onSwipe() {
-    tip('swipe');
+function onHold(e) {
+    tip('hold', 'x:' + e.touches[0].x + ' y:' + e.touches[0].y);
 }
-function onSwiping() {
-    tip('swiping');
+function onSwipe(e) {
+    tip('swipe', 'direction:' + e.direction + ' distance:' + e.distance);
 }
-function onSwipeLeft() {
-    tip('swipe left');
+function onSwiping(e) {
+    tip('swiping', 'direction:' + e.direction + ' distance:' + e.distance + ' delta:' + e.delta);
 }
-function onSwipeRight() {
-    tip('swipe right');
+function onSwipeLeft(e) {
+    tip('swipe left', 'direction:' + e.direction + ' distance:' + e.distance);
 }
-function onSwipeUp() {
-    tip('swipe up');
+function onSwipeRight(e) {
+    tip('swipe right', 'direction:' + e.direction + ' distance:' + e.distance);
 }
-function onSwipeDown() {
-    tip('swipe down');
+function onSwipeUp(e) {
+    tip('swipe up', 'direction:' + e.direction + ' distance:' + e.distance);
 }
-function onDrag() {
-    tip('drag');
+function onSwipeDown(e) {
+    tip('swipe down', 'direction:' + e.direction + ' distance:' + e.distance);
 }
-function onDragLeft() {
-    tip('drag left');
+function onDrag(e) {
+    tip('drag', 'direction:' + e.direction + ' distance:' + e.distance);
 }
-function onDragRight() {
-    tip('drag right');
+function onDragging(e) {
+    tip('dragging', 'direction:' + e.direction + ' distance:' + e.distance + ' delta:' + e.delta);
 }
-function onDragUp() {
-    tip('drag up');
+function onDragLeft(e) {
+    tip('drag left', 'direction:' + e.direction + ' distance:' + e.distance);
 }
-function onDragDown() {
-    tip('drag down');
+function onDragRight(e) {
+    tip('drag right', 'direction:' + e.direction + ' distance:' + e.distance);
 }
-function onPinch() {
-    tip('pinch');
+function onDragUp(e) {
+    tip('drag up', 'direction:' + e.direction + ' distance:' + e.distance);
 }
-function onPinching() {
-    tip('pinching');
+function onDragDown(e) {
+    tip('drag down', 'direction:' + e.direction + ' distance:' + e.distance);
 }
-function onPinchIn() {
-    tip('pinch in');
+function onPinch(e) {
+    tip('pinch', 'direction:' + e.direction + ' distance:' + e.distance + ' scale:' + e.scale);
 }
-function onPinchOut() {
-    tip('pinch out');
+function onPinching(e) {
+    tip('pinching', 'direction:' + e.direction + ' distance:' + e.distance + ' scale:' + e.scale + ' delta:' + e.delta);
 }
-function onRotate() {
-    tip('rotate');
+function onPinchIn(e) {
+    tip('pinch in', 'direction:' + e.direction + ' distance:' + e.distance + ' scale:' + e.scale);
 }
-function onRotateLeft() {
-    tip('rotate left');
+function onPinchOut(e) {
+    tip('pinch out', 'direction:' + e.direction + ' distance:' + e.distance + ' scale:' + e.scale);
 }
-function onRotateRight() {
-    tip('rotate right');
+function onRotate(e) {
+    tip('rotate', 'direction:' + e.direction + ' angle:' + e.angle);
+}
+function onRotating(e) {
+    tip('rotating', 'direction:' + e.direction + ' angle:' + e.angle + ' delta:' + e.delta);
+}
+function onRotateLeft(e) {
+    tip('rotate left', 'direction:' + e.direction + ' angle:' + e.angle);
+}
+function onRotateRight(e) {
+    tip('rotate right', 'direction:' + e.direction + ' angle:' + e.angle);
 }
 var conf = {
     preventDefault: true,
-    stopPropagation: true
+    stopPropagation: true,
+    // tap: false,
+    // doubleTap: false,
+    // drag: false,
+    // swipe: false,
+    // pinch: false,
+    // rotate: false,
 };
-var events = {
+var es = {
     '.touch': onDefaultTap,
     'tap .touch': onTap,
+    'tap2 .touch': onTap2,
     'doubleTap .touch': onDoubleTap,
     'hold .touch': onHold,
     'swipe .touch': onSwipe,
@@ -149,6 +176,7 @@ var events = {
     'swipeUp .touch': onSwipeUp,
     'swipeDown .touch': onSwipeDown,
     'drag .touch': onDrag,
+    'dragging .touch': onDragging,
     'dragLeft .touch': onDragLeft,
     'dragRight .touch': onDragRight,
     'dragUp .touch': onDragUp,
@@ -158,10 +186,11 @@ var events = {
     'pinchIn .touch': onPinchIn,
     'pinchOut .touch': onPinchOut,
     'rotate .touch': onRotate,
+    'rotating .touch': onRotating,
     'rotateLeft .touch': onRotateLeft,
     'rotateRight .touch': onRotateRight,
 };
-touch.config(conf).on(events);
+touch.config(conf).on(es);
 </script>
 </body>
 </html>
