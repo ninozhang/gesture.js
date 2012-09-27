@@ -66,7 +66,7 @@
     /**
      * 简单的选择器匹配方法
      */
-    function selectorMatch(selector) {
+    function selectorExec(selector) {
         if (!selector) {
             return [];
         }
@@ -86,7 +86,7 @@
      * 简单的元素选择器
      */
     function $(selector) {
-        var matches = selectorMatch(selector);
+        var matches = selectorExec(selector);
 
         // 处理 document
         if (matches[2] === 'document') {
@@ -148,8 +148,11 @@
         remove: function(key) {
             delete this.map[key];
         },
+        keys: function() {
+            return Object.keys(this.map);
+        },
         size: function() {
-            return Object.keys(this.map).length;
+            return this.keys().length;
         },
         each: function(fn, context) {
             if (fn) {
@@ -443,6 +446,27 @@
     }
 
     /**
+     * 拆分选择器
+     */
+    function splitSelector(selectors) {
+        var a, s;
+        if (_.isArray(selectors)) {
+            a = [];
+            _.each(selectors, function(selector) {
+                s = splitSelector(selector);
+                a.push(s);
+            });
+            return a;
+        } else if (_.isString(selectors)) {
+            if (!selectors) {
+                return [];
+            }
+            a = selectors.replace(/\./g, '\x00.').replace(/#/g, '\x00#').split('\x00');
+            return without(a, '');
+        }
+    }
+
+    /**
      * 分解选择器并遍历
      */
     function eachSelector(selectors, iterator, context) {
@@ -567,9 +591,7 @@
      */
     function trigger(type, options) {//console.log('trigger:' + type);
         var proxy, event, target, currentTarget,
-            typeMap, selectorMap,
-            targetFound = false,
-            matches, isMatch;
+            typeMap, selectorMap;
 
         if (!options) {
             options = {};
@@ -589,6 +611,39 @@
             proxy = 'document';
         }
 
+        // 手动触发
+        if (!event) {
+            typeMap = eventMap.get(proxy);
+            if (!typeMap) {
+                return;
+            }
+
+            selectorMap = typeMap.get(type);
+            if (!selectorMap) {
+                return;
+            }
+
+            selectorMap.each(function(items) {
+                fireEvent(items, options);
+            });
+
+        // 事件触发
+        } else {
+            target = options.target = options.currentTarget = event.target;
+
+            walk(type, proxy, target, function(item) {
+                fireEvent(item, options);
+            });
+        }
+    }
+
+    /**
+     * 向上遍历元素
+     */
+    function walk(type, proxy, source, fn) {
+        // 从事件触发的目标开始向上查找匹配事件监听的节点
+        var selectors, origins;
+
         typeMap = eventMap.get(proxy);
         if (!typeMap) {
             return;
@@ -599,57 +654,54 @@
             return;
         }
 
-        // 手动触发
-        if (!event) {
-            selectorMap.each(function(items) {
-                fireEvent(items, options);
-            });
+        selectors = selectorMap.keys();
+        origins = selectors.slice();
 
-        // 事件触发
-        } else {
-            target = options.target = options.currentTarget = event.target;
-            currentTarget = event.currentTarget;
 
-            // 从事件触发的目标开始向上查找匹配事件监听的节点
-            var className, classes,
-                fn, context, args;
-            while (target) {
-                selectorMap.each(function(items, selector) {
-                    matches = selectorMatch(selector);
-                    isMatch = false;
-                    // 处理 class
-                    if (matches[1] === '.') {
-                        className = target.className;
-                        if (className) {
-                            classes = className.split(' ');
-                            for (var i = 0; i < classes.length; i++) {
-                                if (classes[i] === matches[2]) {
-                                    isMatch = true;
-                                    break;
-                                }
-                            }
-                        }
 
-                    // 处理 id
-                    } else if (matches[1] === '#') {
-                        isMatch = target.id === matches[2];
 
-                    // 处理 tagName
-                    } else if (matches[2] === selector) {
-                        isMatch = target.tagName.toLowerCase() === selector.toLowerCase();
-                    }
-
-                    if (isMatch) {
-                        targetFound = true;
-                        fireEvent(items, options);
-                    }
-                }, this);
-
-                if (targetFound || (target !== currentTarget)) {
-                    break;
+        while (target) {
+            selectorMap.each(function(items, selector) {
+                if (isSelectorMatch(target, selector)) {
+                    fn(items);
                 }
+            }, this);
+
+            if (target.parentNode && target.parentNode != target) {
                 target = target.parentNode;
             }
+        }
+    }
+
+    /**
+     * 是否匹配选择器
+     */
+    function isSelectorMatch(el, selector) {
+        if (!el || !selector) {
+            return false;
+        }
+
+        var className,
+            matches = selectorExec(selector);
+
+        // 处理 class
+        if (matches[1] === '.') {
+            className = el.className;
+            if (className) {
+                _.each(className.split(' '), function(c) {
+                    if (c === matches[2]) {
+                        return true;
+                    }
+                });
+            }
+
+        // 处理 id
+        } else if (matches[1] === '#') {
+            return el.id === matches[2];
+
+        // 处理 tagName
+        } else if (matches[2] === selector) {
+            return el.tagName.toLowerCase() === selector.toLowerCase();
         }
     }
 
@@ -657,12 +709,12 @@
      * 触发事件
      */
     function fireEvent(items, options) {
-        var fn, context, args, target;
+        var fn, context, args, target, iterator;
         if (!options) {
             options = {};
         }
         target = options.target || window;
-        _.each(items, function(item) {
+        iterator = function(item) {
             fn = item.fn;
             context = item.context || target;
             if (options.args) {
@@ -674,7 +726,12 @@
             }
             args.unshift(options);
             fn.apply(context, args);
-        });
+        };
+        if (_.isArray(items)) {
+            _.each(items, iterator);
+        } else {
+            iterator(items);
+        }
     }
 
     /**
