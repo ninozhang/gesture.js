@@ -383,7 +383,7 @@
         context.startFn = _.bind(onTouchStart(), context);
         context.moveFn = _.bind(onTouchMove(), context);
         context.endFn = _.bind(onTouchEnd(), context);
-        els.forEach(function(el) {
+        _.each(els, function(el) {
             if (el && el.addEventListener) {
                 el.addEventListener('touchstart', context.startFn);
                 el.addEventListener('touchmove', context.moveFn);
@@ -408,16 +408,14 @@
         }
 
         var els = $(proxy);
-        if (els) {
-            els.forEach(function(el) {
-                if (el && el.removeEventListener) {
-                    el.removeEventListener('touchstart', context.startFn);
-                    el.removeEventListener('touchmove', context.moveFn);
-                    el.removeEventListener('touchend', context.endFn);
-                    el.removeEventListener('touchcancel', context.endFn);
-                }
-            });
-        }
+        _.each(els, function(el) {
+            if (el && el.removeEventListener) {
+                el.removeEventListener('touchstart', context.startFn);
+                el.removeEventListener('touchmove', context.moveFn);
+                el.removeEventListener('touchend', context.endFn);
+                el.removeEventListener('touchcancel', context.endFn);
+            }
+        });
 
         proxyMap.remove(proxy);
     }
@@ -499,7 +497,7 @@
         }
         var typeMap, selectorMap, content,
             remove = (options === true);
-            
+
         // 移除响应的响应函数
         if (remove === true) {
             if ((proxy.toString() === 'true') &&
@@ -567,7 +565,7 @@
     /**
      * 向绑定事件监听的元素派发事件
      */
-    function trigger(type, options) {console.log('type:' + type);
+    function trigger(type, options) {//console.log('trigger:' + type);
         var proxy, event, target, currentTarget,
             typeMap, selectorMap,
             targetFound = false,
@@ -662,7 +660,7 @@
         var fn, context, args, target;
         if (!options) {
             options = {};
-        }console.log(items, options);
+        }
         target = options.target || window;
         _.each(items, function(item) {
             fn = item.fn;
