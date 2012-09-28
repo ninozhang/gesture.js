@@ -24,6 +24,14 @@
     var PINCH = 'pinch';
     var PINCHING = 'pinching';
 
+    var types = [
+        DOUBLE_TAP, HOLD, TAP, TAP2, TOUCH,
+        DRAG, DRAGGING, DRAG + capFirst(LEFT), DRAG + capFirst(RIGHT), DRAG + capFirst(UP), DRAG + capFirst(DOWN),
+        ROTATE, ROTATING, ROTATE + capFirst(LEFT), ROTATE + capFirst(RIGHT),
+        SWIPE, SWIPING, SWIPE + capFirst(LEFT), SWIPE + capFirst(RIGHT), SWIPE + capFirst(UP), SWIPE + capFirst(DOWN),
+        PINCH, PINCHING, PINCH + capFirst(IN), PINCH + capFirst(OUT)
+    ]
+
     var doc = document,
         body = doc.body;
 
@@ -61,25 +69,6 @@
         if (defaults.stopImmediatePropagation === true || force === true) {
             event.stopImmediatePropagation();
         }
-    }
-
-    /**
-     * 简单的选择器匹配方法
-     */
-    function selectorExec(selector) {
-        if (!selector) {
-            return [];
-        }
-
-        // 处理 class 和 id
-        var selectorExpr = /([\.#])(.*)/,
-            matches = selectorExpr.exec(selector);
-
-        // 处理 tagName
-        if (!matches) {
-            matches = [selector, null, selector];
-        }
-        return matches;
     }
 
     /**
@@ -168,6 +157,9 @@
                         break;
                     }
                 }
+                // _.each(this.map, function(value, key) {
+                //     fn.call(this, value, key);
+                // }, this);
             }
         },
         reset: function() {
@@ -446,6 +438,28 @@
     }
 
     /**
+     * 分解选择器并遍历
+     */
+    function eachSelector(selectors, iterator, context) {
+        var items, type, selector;
+        if (!context) {
+            context = this;
+        }
+        selectors = selectors.split(',');
+        _.each(selectors, function(item) {
+            items = item.split(' ');
+            if (items.length > 0 && types.indexOf(items[0]) > -1) {
+                type = items.shift();
+            } else {
+                type = defaults.type;
+            }
+            selector = items.join(' ');
+console.log(item, '|', items, '|', type, '|', selector);
+            iterator.call(this, type, selector);
+        });
+    }
+
+    /**
      * 拆分选择器
      */
     function splitSelector(selectors) {
@@ -462,22 +476,124 @@
                 return [];
             }
             a = selectors.replace(/\./g, '\x00.').replace(/#/g, '\x00#').split('\x00');
-            return without(a, '');
+            if (a.length > 0 && a[0] === '') {
+                a.shift();
+            }
+            return a;
         }
     }
 
     /**
-     * 分解选择器并遍历
+     * 简单的选择器匹配方法
      */
-    function eachSelector(selectors, iterator, context) {
-        var type, selector;
-        selectors = selectors.split(',');
-        _.each(selectors, function(item) {
-            item = item.split(' ');
-            type = item.length > 1 ? item[0] : defaults.type;
-            selector = item[1] || item[0];
-            iterator.call(context || this, type, selector);
+    function selectorExec(selector) {
+        if (!selector) {
+            return [];
+        }
+
+        // 处理 class 和 id
+        var selectorExpr = /([\.#])(.*)/,
+            matches = selectorExpr.exec(selector);
+
+        // 处理 tagName
+        if (!matches) {
+            matches = [selector, null, selector];
+        }
+        return matches;
+    }
+
+    /**
+     * 是否匹配选择器
+     */
+    function isSelectorMatch(el, selector) {
+        if (!el || !selector) {
+            return false;
+        }
+
+        var array = splitSelector(selector),
+            className, matches, isMatch;
+        for(var i = 0; i < array.length; i++) {
+            var part = array[i];
+            matches = selectorExec(part);
+            isMatch = false;
+            // 处理 class
+            if (matches[1] === '.') {
+                className = el.className;
+                if (className) {
+                    _.each(className.split(' '), function(c) {
+                        if (c === matches[2]) {
+                            isMatch = true;
+                        }
+                    });
+                }
+
+            // 处理 id
+            } else if (matches[1] === '#') {
+                isMatch = el.id === matches[2];
+
+            // 处理 tagName
+            } else if (el && el.tagName) {
+                isMatch = el.tagName.toLowerCase() === matches[2].toLowerCase();
+            }
+console.log('isMatch', selector, isMatch);
+            if (!isMatch) {
+                return isMatch;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 向上遍历元素
+     * 从源目标开始向上查找匹配事件监听的节点
+     */
+    function walk(type, proxy, el, fn) {
+        var selectors, origins;
+console.log('walk:', type, proxy, el, 'fn');
+        typeMap = eventMap.get(proxy);
+        if (!typeMap) {
+            return;
+        }
+
+        selectorMap = typeMap.get(type);
+        if (!selectorMap) {
+            return;
+        }
+
+        origins = selectorMap.keys();
+        selectors = [];
+
+        // 将 'div .a .b.c' 分解为 ['div', '.a', '.b.c']
+        _.each(origins, function(selector) {
+            selectors.push(selector.split(' '));
         });
+        var selector, length;
+        while (el) {
+            _.each(selectors, function(selectorArray) {
+                length = selectorArray.length;
+                if (length > 0) {
+                    selector = selectorArray[length - 1];
+                    if (isSelectorMatch(el, selector)) {
+                        selectorArray.pop();
+                    }
+                }
+            }, this);
+
+            if (el.parentNode && el.parentNode !== el) {
+                el = el.parentNode;
+            } else {
+                break;
+            }
+        }
+
+        var items;
+        _.each(selectors, function(selectorArray, index) {
+            if (selectorArray.length === 0) {
+console.log('匹配：', origins[index]);
+                items = selectorMap.get(origins[index]);
+                fn.call(this, items);
+            }
+        }, this);
     }
 
     /**
@@ -494,7 +610,7 @@
      * 解绑在所有父级元素所有响应函数
      *  (type, selector, true, undefined, true)
      */
-    function bindEvent(type, selector, proxy, item, options) {
+    function bindEvent(type, selector, proxy, item, options) {console.log('bind', type, selector, proxy, 'item', options);
         if (!type || !_.isString(type) ||
             !selector || !_.isString(selector)) {
             return;
@@ -589,7 +705,7 @@
     /**
      * 向绑定事件监听的元素派发事件
      */
-    function trigger(type, options) {//console.log('trigger:' + type);
+    function trigger(type, options) {console.log('trigger:' + type);
         var proxy, event, target, currentTarget,
             typeMap, selectorMap;
 
@@ -638,77 +754,9 @@
     }
 
     /**
-     * 向上遍历元素
-     */
-    function walk(type, proxy, source, fn) {
-        // 从事件触发的目标开始向上查找匹配事件监听的节点
-        var selectors, origins;
-
-        typeMap = eventMap.get(proxy);
-        if (!typeMap) {
-            return;
-        }
-
-        selectorMap = typeMap.get(type);
-        if (!selectorMap) {
-            return;
-        }
-
-        selectors = selectorMap.keys();
-        origins = selectors.slice();
-
-
-
-
-        while (target) {
-            selectorMap.each(function(items, selector) {
-                if (isSelectorMatch(target, selector)) {
-                    fn(items);
-                }
-            }, this);
-
-            if (target.parentNode && target.parentNode != target) {
-                target = target.parentNode;
-            }
-        }
-    }
-
-    /**
-     * 是否匹配选择器
-     */
-    function isSelectorMatch(el, selector) {
-        if (!el || !selector) {
-            return false;
-        }
-
-        var className,
-            matches = selectorExec(selector);
-
-        // 处理 class
-        if (matches[1] === '.') {
-            className = el.className;
-            if (className) {
-                _.each(className.split(' '), function(c) {
-                    if (c === matches[2]) {
-                        return true;
-                    }
-                });
-            }
-
-        // 处理 id
-        } else if (matches[1] === '#') {
-            return el.id === matches[2];
-
-        // 处理 tagName
-        } else if (matches[2] === selector) {
-            return el.tagName.toLowerCase() === selector.toLowerCase();
-        }
-    }
-
-    /**
      * 触发事件
      */
-    function fireEvent(items, options) {
+    function fireEvent(items, options) {console.log('fireEvent', items, options);
         var fn, context, args, target, iterator;
         if (!options) {
             options = {};

@@ -36,9 +36,16 @@ body {
     line-height: 260px;
     height: 260px;
     color: #999;
-/*    height: 10px;
-    width: 10px;
-    overflow: hidden;*/
+}
+.left {
+    float: left;
+    width: 25%;
+    background-color: #ddd;
+}
+.right {
+    float: right;
+    width: 25%;
+    background-color: #ddd;
 }
 .track {
     margin-top: 10px;
@@ -55,7 +62,13 @@ body {
 </div>
 <div class="box subtip" id="subtip"></div>
 <div class="box touch">
-    挠我!
+    挠我
+    <div class="box left">
+        左
+    </div>
+    <div class="box right">
+        右
+    </div>
 </div>
 <div class="box track" id="track"></div>
 <script>
@@ -199,9 +212,15 @@ var events = {
     'rotate .touch': onRotate,
     'rotating .touch': onRotating,
     'rotateLeft .touch': onRotateLeft,
-    'rotateRight .touch': onRotateRight
+    'rotateRight .touch': onRotateRight,
+    '.touch div.left': [onTap, {action: 'tap'}, ['left']],
+    'tap .touch .right': [onTap, {action: 'tap'}, ['right']],
+    'tap .touch .not_exist': [onTap, {action: '*warn'}, ['never tap this']],
+    '.touch span.left': [onTap, {action: '*warn'}, ['never tap this']],
+    '.touch .right.left': [onTap, {action: '*warn'}, ['never tap this']],
+    '.left .touch': [onTap, {action: '*warn'}, ['never tap this']],
 };
-// touch.config(conf).on(events);
+touch.config(conf).on(events);
 
 // 解绑事件测试
 // touch.off('.touch', true);
