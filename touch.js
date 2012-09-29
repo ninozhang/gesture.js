@@ -186,6 +186,28 @@
         }
     };
 
+    UIProxy.prototype.preventDefault = function () {
+        return function() {
+            var event = this.event;
+            if (event && event.preventDefault) {
+                event.preventDefault();
+            }
+            this.isDefaultPrevented = true;
+        };
+    };
+
+    UIProxy.prototype.stopPropagation = function (options) {
+        return function() {
+            this.isPropagationStopped = true;
+        };
+    };
+
+    UIProxy.prototype.stopImmediatePropagation = function (options) {
+        return function() {
+            this.isImmediatePropagationStopped = true;
+        };
+    };
+
     /**
      * 简单的元素选择器
      */
@@ -411,7 +433,7 @@ console.log('removeEvent', proxy);
      * 更新元素事件监听
      * 如果没有监听就移除，如果还有加入监听则
      */
-    Touch.prototype.updateEvent = function (proxy) {console.log(this);
+    Touch.prototype.updateEvent = function (proxy) {
         this.eventMap.each(function(typeMap, p) {
             if (!proxy || proxy === p) {
                 var active = 0;
@@ -533,8 +555,7 @@ console.log('removeEvent', proxy);
     /**
      * 从源目标开始向上查找匹配事件监听的节点
      */
-    Touch.prototype.walk = function (type, proxy, el, fn) {
-console.log('walk:', type, proxy, el, 'fn');
+    Touch.prototype..walk = function (type, proxy, target, fn) {
         typeMap = this.eventMap.get(proxy);
         if (!typeMap) {
             return;
@@ -545,7 +566,12 @@ console.log('walk:', type, proxy, el, 'fn');
             return;
         }
 
-        var origins = selectorMap.keys(),
+        var el = target,
+            targetMap = new Map(),
+            levelMap = new Map(),
+            level = 0,
+            orders = [],
+            origins = selectorMap.keys(),
             selectors = [],
             selector, length;
 
@@ -555,16 +581,23 @@ console.log('walk:', type, proxy, el, 'fn');
         });
 
         while (el) {
-            _.each(selectors, function(selectorArray) {
+            _.each(selectors, function(selectorArray, index) {
                 length = selectorArray.length;
                 if (length > 0) {
                     selector = selectorArray[length - 1];
                     // 选择器是否匹配当前元素，匹配则取出
                     if (this.isSelectorMatch(el, selector)) {
+                        if (!targetMap.has(index)) {
+                            targetMap.set(index, el);
+                            levelMap.set(selector, level);
+                            orders.push(index);
+                        }
                         selectorArray.pop();
                     }
                 }
             }, this);
+
+            level++;
 
             if (el.parentNode && el.parentNode !== el) {
                 el = el.parentNode;
@@ -574,12 +607,14 @@ console.log('walk:', type, proxy, el, 'fn');
         }
 
         var items;
-        _.each(selectors, function(selectorArray, index) {
-            if (selectorArray.length === 0) {
-                items = selectorMap.get(origins[index]);
-                fn.call(this, items);
+        _.each(orders, function(index) {
+            if (selectors[index].length === 0) {
+                selector = origins[index];
+                items = selectorMap.get(selector);
+                level = levelMap.get(selector);
+                fn.call(this, items, target, targetMap.get(index, target), level);
             }
-        }, this);
+        });
     };
 
     /**
@@ -695,9 +730,7 @@ console.log(this);
      * 向绑定事件监听的元素派发事件
      */
     Touch.prototype.trigger = function (type, options) {
-console.log('trigger:' + type);
         var proxy, event,
-            target, currentTarget,
             typeMap, selectorMap,
             fireEvent = this.fireEvent;
 
@@ -737,10 +770,16 @@ console.log('trigger:' + type);
 
         // 事件触发
         } else {
-            target = options.target = options.currentTarget = event.target;
-
-            this.walk(type, proxy, target, function(item) {
-                fireEvent(item, options);
+            var currentLevel = 0;
+            this.walk(type, proxy, event.target, function(item, target, currentTarget, level) {
+                if (!options.isImmediatePropagationStopped &&
+                    (!options.isPropagationStopped ||
+                        (options.isPropagationStopped && level <= currentLevel))) {
+                    options.target = target;
+                    options.currentTarget = currentTarget;
+                    fireEvent(item, options);
+                    currentLevel = level;
+                }
             });
         }
     };
@@ -749,12 +788,10 @@ console.log('trigger:' + type);
      * 触发事件
      */
     Touch.prototype.fireEvent = function (items, options) {
-console.log('fireEvent', items, options);
         var fn, context, args, target, iterator;
         if (!options) {
             options = {};
         }
-        target = options.target || document;
         iterator = function(item) {
             fn = item.fn;
             context = item.context || target;
@@ -769,7 +806,14 @@ console.log('fireEvent', items, options);
             fn.apply(context, args);
         };
         if (_.isArray(items)) {
-            _.each(items, iterator);
+            var length = items.length;
+            for (var i = 0; i < length; i++) {
+                var item = items[i];
+                iterator(item);
+                if (options.isImmediatePropagationStopped) {
+                    break;
+                }
+            }
         } else {
             iterator(items);
         }
@@ -898,6 +942,12 @@ console.log('touch end', options, this);
         if (!more) {
             more = {};
         }
+        options.isDefaultPrevented = false;
+        options.isImmediatePropagationStopped = false;
+        options.isPropagationStopped = false;
+        options.preventDefault = _.bind(this.preventDefault(), options);
+        options.stopPropagation = _.bind(this.stopPropagation(), options);
+        options.stopImmediatePropagation = _.bind(this.stopImmediatePropagation(), options);
         options.last = options.start || [];
         options.start = more.start || [];
         options.touches = options.start;
@@ -1186,15 +1236,17 @@ console.log('touch end', options, this);
      */
     Touch.prototype.extractTouches = function (touches) {
         var ts = [],
+            length = touches.length,
             el, id, x, y, t;
-        _.each(touches, function(touch) {
+        for (var i = 0; i < length; i++) {
+            var touch = touches[i];
             el = touch.target;
             id = touch.identifier || Math.random() * 10000000;
             x = touch.pageX;
             y = touch.pageY;
             t = new Date();
             ts.push({el: el, id: id, x: x, y: y, t: t});
-        });
+        }
         return ts;
     };
 
