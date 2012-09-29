@@ -88,6 +88,7 @@ document.addEventListener('touchend', onTouch);
 document.addEventListener('touchcancel', onTouch);
 </script>
 <script>
+var touch = new Touch();
 function tip(text, sub) {
     sub || (sub = '');
     console.log('*tip*:' + text);
@@ -181,12 +182,12 @@ function onRotateRight(e) {
 var conf = {
     preventDefault: true,
     stopPropagation: true,
-    // tap: false,
-    // doubleTap: false,
-    // drag: false,
-    // swipe: false,
-    // pinch: false,
-    // rotate: false,
+    tap: false,
+    doubleTap: false,
+    drag: false,
+    swipe: false,
+    pinch: false,
+    rotate: false,
 };
 var events = {
     '.touch': onDefaultTap,

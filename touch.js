@@ -64,7 +64,7 @@
             if (fn) {
                 _.each(this.map, function(value, key) {
                     fn.call(this, value, key);
-                }, this);
+                }, context || this);
             }
         },
         reset: function() {
@@ -171,6 +171,7 @@
      * 取消事件默认方法或者冒泡
      */
     Touch.prototype.cancelEvent = function (event, force) {
+        var defaults = this.defaults;
         if (defaults.preventDefault === true ||
             force === true) {
             event.preventDefault();
@@ -189,7 +190,7 @@
      * 简单的元素选择器
      */
     Touch.prototype.$ = function (selector) {
-        var matches = selectorExec(selector);
+        var matches = this.selectorExec(selector);
 
         // 处理 document
         if (matches[2] === 'document') {
@@ -248,7 +249,7 @@
         if (_.isObject(key)) {
             _.each(key, function(v, k) {
                 this.defaults[k] = v;
-            });
+            }, this);
         } else if (_.isDef(value)) {
             this.defaults[key] = value;
         }
@@ -294,7 +295,7 @@
                 this.on(selector, proxy, item, options);
             }, this);
         } else if (_.isString(selectors)) {
-            eachSelector(selectors, function(type, selector) {
+            this.eachSelector(selectors, function(type, selector) {
                 this.bindEvent(type, selector, proxy, item, options);
             }, this);
         }
@@ -328,7 +329,7 @@
                 this.off(selector, proxy, item);
             }, this);
         } else if (_.isString(selectors)) {
-            eachSelector(selectors, function(type, selector) {
+            this.eachSelector(selectors, function(type, selector) {
 console.log('off:', type, selector, proxy, item, true);
                 this.bindEvent(type, selector, proxy, item, true);
             }, this);
@@ -349,25 +350,34 @@ console.log('addEvent', proxy);
             return;
         }
 
-        var els = $(proxy),
-            context = this.proxyMap.get(proxy);
-        if (!els || context) {
+        var that = this,
+            bind,
+            els = this.$(proxy),
+            options = this.proxyMap.get(proxy);
+        if (!els || options) {
             return;
         }
-        context = {proxy: proxy};
-        context.startFn = _.bind(onTouchStart(), context);
-        context.moveFn = _.bind(onTouchMove(), context);
-        context.endFn = _.bind(onTouchEnd(), context);
+
+        bind = function(fn) {
+            return function(event) {
+                fn.call(that, event, options);
+            };
+        };
+
+        options = {proxy: proxy};
+        options.startFn = bind(this.onTouchStart());
+        options.moveFn = bind(this.onTouchMove());
+        options.endFn = bind(this.onTouchEnd());
         _.each(els, function(el) {
             if (el && el.addEventListener) {
-                el.addEventListener('touchstart', context.startFn);
-                el.addEventListener('touchmove', context.moveFn);
-                el.addEventListener('touchend', context.endFn);
-                el.addEventListener('touchcancel', context.endFn);
+                el.addEventListener('touchstart', options.startFn);
+                el.addEventListener('touchmove', options.moveFn);
+                el.addEventListener('touchend', options.endFn);
+                el.addEventListener('touchcancel', options.endFn);
             }
         });
 
-        this.proxyMap.set(proxy, context);
+        this.proxyMap.set(proxy, options);
     };
 
     /**
@@ -379,18 +389,18 @@ console.log('removeEvent', proxy);
             return;
         }
 
-        var context = this.proxyMap.get(proxy);
-        if (!context) {
+        var options = this.proxyMap.get(proxy);
+        if (!options) {
             return;
         }
 
-        var els = $(proxy);
+        var els = this.$(proxy);
         _.each(els, function(el) {
             if (el && el.removeEventListener) {
-                el.removeEventListener('touchstart', context.startFn);
-                el.removeEventListener('touchmove', context.moveFn);
-                el.removeEventListener('touchend', context.endFn);
-                el.removeEventListener('touchcancel', context.endFn);
+                el.removeEventListener('touchstart', options.startFn);
+                el.removeEventListener('touchmove', options.moveFn);
+                el.removeEventListener('touchend', options.endFn);
+                el.removeEventListener('touchcancel', options.endFn);
             }
         });
 
@@ -401,15 +411,15 @@ console.log('removeEvent', proxy);
      * 更新元素事件监听
      * 如果没有监听就移除，如果还有加入监听则
      */
-    Touch.prototype.updateEvent = function (proxy) {
-        eventMap.each(function(typeMap, p) {
+    Touch.prototype.updateEvent = function (proxy) {console.log(this);
+        this.eventMap.each(function(typeMap, p) {
             if (!proxy || proxy === p) {
                 var active = 0;
                 typeMap.each(function(selectorMap) {
                     selectorMap.each(function(items) {
                         active += items.length;
                     });
-                });
+                });console.log(this);
                 if (active > 0) {
                     this.addEvent(p);
                 } else {
@@ -422,18 +432,15 @@ console.log('removeEvent', proxy);
     /**
      * 分解选择器并遍历
      */
-    Touch.prototype.eachSelector = function (selectors, iterator, context) {
+    Touch.prototype.eachSelector = function (selectors, iterator) {
         var items, type, selector;
-        if (!context) {
-            context = this;
-        }
         selectors = selectors.split(',');
         _.each(selectors, function(item) {
             items = item.split(' ');
-            if (items.length > 0 && types.indexOf(items[0]) > -1) {
+            if (items.length > 0 && this.types.indexOf(items[0]) > -1) {
                 type = items.shift();
             } else {
-                type = defaults.type;
+                type = this.defaults.type;
             }
             selector = items.join(' ');
             iterator.call(this, type, selector);
@@ -490,12 +497,13 @@ console.log('removeEvent', proxy);
             return false;
         }
 
-        var array = splitSelector(selector),
+        var array = this.splitSelector(selector),
             className, matches, isMatch;
         for(var i = 0; i < array.length; i++) {
             var part = array[i];
-            matches = selectorExec(part);
+            matches = this.selectorExec(part);
             isMatch = false;
+            
             // 处理 class
             if (matches[1] === '.') {
                 className = el.className;
@@ -552,7 +560,7 @@ console.log('walk:', type, proxy, el, 'fn');
                 if (length > 0) {
                     selector = selectorArray[length - 1];
                     // 选择器是否匹配当前元素，匹配则取出
-                    if (isSelectorMatch(el, selector)) {
+                    if (this.isSelectorMatch(el, selector)) {
                         selectorArray.pop();
                     }
                 }
@@ -609,7 +617,7 @@ console.log('bind', type, selector, proxy, 'item', options);
         // 解析 item
         if (item) {
             item = this.parseItem(item);
-            _.extend(item.options, defaults);
+            _.extend(item.options, this.defaults);
             if (_.isObject(options)) {
                 _.extend(item.options, options);
             }
@@ -679,7 +687,7 @@ console.log('bind', type, selector, proxy, 'item', options);
             content = selectorMap.get(selector, []);
             content.push(item);
         }
-
+console.log(this);
         this.updateEvent(proxy);
     };
 
@@ -731,7 +739,7 @@ console.log('trigger:' + type);
         } else {
             target = options.target = options.currentTarget = event.target;
 
-            walk(type, proxy, target, function(item) {
+            this.walk(type, proxy, target, function(item) {
                 fireEvent(item, options);
             });
         }
@@ -771,31 +779,32 @@ console.log('fireEvent', items, options);
      * 响应触摸开始
      */
     Touch.prototype.onTouchStart = function () {
-        return function(event, context) {
-//console.log('touch start', event, this);
-            cancelEvent(event);
-            var proxy = context.proxy,
-                start = extractTouches(event.touches),
-                fingers = start.length,
-                doubleTap = false;
+        return function(event, options) {
+//console.log('touch start', options, this);
+            this.cancelEvent(event);
+
+            var start = this.extractTouches(event.touches),
+                fingers = start.length;
 
             // 重置手势
-            this.resetGesture({start: start, prev: start, current: start,
-                fingers: fingers}, context);
+            this.resetGesture(options, {start: start, prev: start, current: start,
+                fingers: fingers});
+
+            options.event = event;
 
             if (fingers === 1) {
                 // 判断是否 double tap
-                if (defaults.doubleTap && isDoubleTap.call(this, event)) {
-                    this.doubleTap = true;
+                if (this.defaults.doubleTap && this.isDoubleTap(options)) {
+                    options.doubleTap = true;
                 }
 
                 // 判断是否 hold
-                if (defaults.hold) {
-                    hold.call(this, event);
+                if (this.defaults.hold) {
+                    this.hold(options);
                 }
             } else if (fingers === 2) {
-                this.angle = parseInt(detectAngle(start), 10);
-                this.distance = parseInt(detectDistance(start), 10);
+                options.angle = parseInt(this.detectAngle(start), 10);
+                options.distance = parseInt(this.detectDistance(start), 10);
             }
         };
     };
@@ -804,31 +813,36 @@ console.log('fireEvent', items, options);
      * 响应触摸移动
      */
     Touch.prototype.onTouchMove = function () {
-        return function(event, context) {
-            cancelEvent(event);
-            hold.call(this, false);
-            this.prev = this.current;
-            this.current = extractTouches(event.touches);
-            var fingers = this.current.length;
-            if (fingers === this.fingers) {
+        return function(event, options) {
+//console.log('touch move', options, this);
+            this.cancelEvent(event);
+            this.hold(options, false);
+
+            options.prev = options.current;
+            options.current = this.extractTouches(event.touches);
+
+            var defaults = this.defaults,
+                fingers = options.current.length;
+
+            if (fingers === options.fingers) {
                 if (fingers === 1) {
-                    if (defaults.swipe && (this.swiping = isSwipe.call(this, event))) {
-                        swping.call(this, event);
-                    } else if(defaults.drag && this.hold) {
-                        this.drag = true;
-                        that.dragging.call(this, event);
+                    if (defaults.swipe && (options.swiping = this.isSwipe(options))) {
+                        this.swping(options);
+                    } else if(defaults.drag && options.hold) {
+                        options.drag = true;
+                        this.dragging(options);
                     }
                 } else if (fingers === 2) {
-                    cancelEvent(event, true);
-                    this.rotate = defaults.rotate && rotating.call(this, event);
-                    this.pinch = defaults.pinch && pinching.call(this, event);
-                    if (!this.rotate && !this.pinch && defaults.drag) {
-                        this.drag = true;
-                        that.dragging.call(this, event);
+                    this.cancelEvent(event, true);
+                    options.rotate = defaults.rotate && this.rotating(options);
+                    options.pinch = defaults.pinch && this.pinching(options);
+                    if (!options.rotate && !options.pinch && defaults.drag) {
+                        options.drag = true;
+                        this.dragging(options);
                     }
                 }
             } else {
-                that.resetGesture();
+                this.resetGesture();
             }
         };
     };
@@ -837,38 +851,40 @@ console.log('fireEvent', items, options);
      * 响应触摸结束
      */
     Touch.prototype.onTouchEnd = function () {
-        return function(event) {
-            cancelEvent(event);
-            hold.call(this, false);
-            var proxy = this.proxy,
-                start = this.start,
-                current = this.current,
-                fingers = this.fingers;
+        return function(event, options) {
+console.log('touch end', options, this);
+
+            this.cancelEvent(event);
+            this.hold(options, false);
+
+            var defaults = this.defaults,
+                fingers = options.fingers;
             if (fingers === 1) {
-                if (defaults.doubleTap && this.doubleTap) {
-                    doubleTap.call(this, event);
-                } else if (defaults.swipe && isSwipe.call(this, event)) {
-                    swipe.call(this, event);
-                } else if (defaults.drag && this.drag) {
-                    drag.call(this, event);
-                } else if (defaults.tap && !this.hold && isTap.call(this, event)) {
-                    tap.call(this, event);
+                if (defaults.doubleTap && options.doubleTap) {
+                    this.doubleTap(options);
+                } else if (defaults.swipe && this.isSwipe(options)) {
+                    this.swipe(options);
+                } else if (defaults.drag && options.drag) {
+                    this.drag(options);
+                } else if (defaults.tap && !options.hold && this.isTap(options)) {
+                    this.tap(options);
                 }
             } else if (fingers === 2) {
-                if (defaults.tap2 && isTap2.call(this, event)) {
-                    this.tap2 = true;
-                    tap2.call(this, event);
+                if (defaults.tap2 && this.isTap2(options)) {
+                    options.tap2 = true;
+                    this.tap2(options);
                 }
-                if (!this.tap2) {
-                    if (defaults.rotate && this.rotate) {
-                        rotate.call(this, event);
+                if (!options.tap2) {
+                    if (defaults.rotate && options.rotate) {
+                        this.rotate(options);
                     }
-                    if (defaults.pinch && this.pinch) {
-                        pinch.call(this, event);
+                    if (defaults.pinch && options.pinch) {
+                        this.pinch(options);
                     }
                     if (defaults.drag &&
-                        ((!this.pinch && !this.rotate && isDrag.call(this, event)) || this.drag)) {
-                        drag.call(this, event);
+                        ((!options.pinch && !options.rotate && this.isDrag(options)) ||
+                            options.drag)) {
+                        this.drag(options);
                     }
                 }
             }
@@ -878,173 +894,164 @@ console.log('fireEvent', items, options);
     /**
      * 重置手势
      */
-    Touch.prototype.resetGesture = function (options) {
-        if (!options) {
-            options = {};
+    Touch.prototype.resetGesture = function (options, more) {
+        if (!more) {
+            more = {};
         }
-        this.last = this.start || [];
-        this.start = options.start || [];
-        this.prev = options.prev || [];
-        this.current = options.current || [];
-        this.fingers = options.fingers || 0;
-        this.angle = options.angle || 0;
-        this.lastAngle = options.angle || 0;
-        this.angleDiff = 0;
-        this.distance = options.distance || 0;
-        this.lastDistance = options.distance || 0;
-        this.distanceDiff = 0;
-        this.tap2 = false;
-        this.doubleTap = options.doubleTap || false;
-        this.doubleTapInterval = options.doubleTapInterval || 0;
-        this.doubleTapDistance = options.doubleTapDistance || 0;
-        this.scale = 1;
-        this.hold = false;
-        this.drag = false;
-        this.pinch = false;
-        this.rotate = false;
+        options.last = options.start || [];
+        options.start = more.start || [];
+        options.touches = options.start;
+        options.prev = more.prev || [];
+        options.current = more.current || [];
+        options.fingers = more.fingers || 0;
+        options.angle = more.angle || 0;
+        options.lastAngle = more.angle || 0;
+        options.angleDiff = 0;
+        options.distance = more.distance || 0;
+        options.lastDistance = more.distance || 0;
+        options.distanceDiff = 0;
+        options.tap2 = false;
+        options.doubleTap = more.doubleTap || false;
+        options.doubleTapInterval = more.doubleTapInterval || 0;
+        options.doubleTapDistance = more.doubleTapDistance || 0;
+        options.scale = 1;
+        options.hold = false;
+        options.drag = false;
+        options.pinch = false;
+        options.rotate = false;
+    };
+
+    /**
+     *
+     */
+    Touch.prototype.clone = function(options, more) {
+        if (!more) {
+            more = {};
+        }
+        return _.extend({}, options, more);
     };
 
     /**
      * tap
      */
-    Touch.prototype.tap = function (event) {
-        var proxy = this.proxy,
-            start = this.start,
-            options = {event: event, proxy: proxy, touches: start};
-        trigger(TAP, options);
+    Touch.prototype.tap = function (options) {
+        this.trigger(TAP, this.clone(options));
     };
 
     /**
      * 2 fingers tap
      */
-    Touch.prototype.tap2 = function (event) {
-        var proxy = this.proxy,
-            start = this.start,
-            distance = detectDistance(start[0], start[1]),
-            options = {event: event, proxy: proxy, touches: start,
-                distance: distance};
-        trigger(TAP2, options);
+    Touch.prototype.tap2 = function (options) {
+        var proxy = options.proxy,
+            start = options.start,
+            distance = this.detectDistance(start[0], start[1]);
+        options = this.clone(options, {distance: distance});
+        this.trigger(TAP2, options);
     };
 
     /**
      * double tap
      */
-    Touch.prototype.doubleTap = function (event) {
-        var proxy = this.proxy,
-            start = this.start,
-            interval = this.doubleTapInterval,
-            distance = this.doubleTapDistance,
-            options = {event: event, proxy: proxy, touches: start,
-                distance: distance, interval: interval};
-        trigger(DOUBLE_TAP, options);
+    Touch.prototype.doubleTap = function (options) {
+        var interval = options.doubleTapInterval,
+            distance = options.doubleTapDistance;
+        options = this.clone(options, {distance: distance, interval: interval});
+        this.trigger(DOUBLE_TAP, options);
     };
 
     /**
      * hold
      */
-    Touch.prototype.hold = function (event) {
-        clearTimeout(this.holdTimer);
-        if (event) {
-            var that = this,
-                proxy = this.proxy,
-                start = this.start,
-                options = {event: event, proxy: proxy, touches: start};
-            this.holdTimer = setTimeout(function() {
-                cancelEvent(event, true);
-                that.hold = true;
-                trigger(HOLD, options);
-            }, defaults.holdTimeout);
+    Touch.prototype.hold = function (options, remove) {
+        clearTimeout(options.holdTimer);
+        if (remove !== false) {
+            var that = this;
+            options.holdTimer = setTimeout(function() {
+                that.cancelEvent(options.event, true);
+                options.hold = true;
+                options = that.clone(options);
+                that.trigger(HOLD, options);
+            }, this.defaults.holdTimeout);
         }
     };
 
     /**
      * drag
      */
-    Touch.prototype.drag = function (event) {
-        var proxy = this.proxy,
-            start = this.start,
-            current = this.current,
-            distance = detectDistance(start, current),
-            direction = detectDirection(start, current),
-            options = {event: event, proxy: proxy, touches: start,
-                direction: direction.toLowerCase(), distance: distance};
-        trigger(DRAG, options);
-        trigger(DRAG + direction, options);
+    Touch.prototype.drag = function (options) {
+        var start = options.start,
+            current = options.current,
+            distance = this.detectDistance(start, current),
+            direction = this.detectDirection(start, current);
+        options = this.clone(options, {direction: direction.toLowerCase(), distance: distance});
+        this.trigger(DRAG, options);
+        this.trigger(DRAG + direction, options);
     };
 
     /**
      * draging
      */
-    Touch.prototype.dragging = function (event) {
-        var proxy = this.proxy,
-            start = this.start,
-            prev = this.prev,
-            current = this.current,
-            distance = detectDistance(start, current),
-            direction = detectDirection(start, current),
-            delta = detectDistance(prev, current),
-            options = {event: event, proxy: proxy, touches: start,
-                direction: direction.toLowerCase(), distance: distance, delta: delta};
-        trigger(DRAGGING, options);
+    Touch.prototype.dragging = function (options) {
+        var start = options.start,
+            prev = options.prev,
+            current = options.current,
+            distance = this.detectDistance(start, current),
+            direction = this.detectDirection(start, current),
+            delta = this.detectDistance(prev, current);
+        options = this.clone(options, {direction: direction.toLowerCase(), distance: distance, delta: delta});
+        this.trigger(DRAGGING, options);
     };
 
     /**
      * swipe
      */
-    Touch.prototype.swipe = function (event) {
-        var proxy = this.proxy,
-            start = this.start,
-            current = this.current,
-            distance = detectDistance(start, current),
-            direction = detectDirection(start, current),
-            options = {event: event, proxy: proxy, touches: start,
-                direction: direction.toLowerCase(), distance: distance};
-        trigger(SWIPE, options);
-        trigger(SWIPE + direction, options);
+    Touch.prototype.swipe = function (options) {
+        var start = options.start,
+            current = options.current,
+            distance = this.detectDistance(start, current),
+            direction = this.detectDirection(start, current);
+        options = this.clone(options, {direction: direction.toLowerCase(), distance: distance});
+        this.trigger(SWIPE, options);
+        this.trigger(SWIPE + direction, options);
     };
 
     /**
      * swiping
      */
-    Touch.prototype.swping = function (event) {
-        var proxy = this.proxy,
-            start = this.start,
-            prev = this.prev,
-            current = this.current,
-            distance = detectDistance(start, current),
-            direction = detectDirection(start, current),
-            delta = detectDistance(prev, current),
-            options = {event: event, proxy: proxy, touches: start,
-                direction: direction.toLowerCase(), distance: distance, delta: delta};
-        trigger(SWIPING, options);
+    Touch.prototype.swping = function (options) {
+        var start = options.start,
+            prev = options.prev,
+            current = options.current,
+            distance = this.detectDistance(start, current),
+            direction = this.detectDirection(start, current),
+            delta = this.detectDistance(prev, current);
+        options = this.clone(options, {direction: direction.toLowerCase(), distance: distance, delta: delta});
+        this.trigger(SWIPING, options);
     };
 
     /**
      * rotate
      */
-    Touch.prototype.rotate = function (event) {
-        var proxy = this.proxy,
-            angleDiff = this.angleDiff,
-            direction = this.angleDiff > 0 ? RIGHT : LEFT,
-            options = {event: event, proxy: proxy, touches: start,
-                angle: angleDiff, direction: direction.toLowerCase()};
-        trigger(ROTATE, options);
-        trigger(ROTATE + direction, options);
+    Touch.prototype.rotate = function (options) {
+        var angleDiff = options.angleDiff,
+            direction = angleDiff > 0 ? RIGHT : LEFT;
+        options = this.clone(options, {angle: angleDiff, direction: direction.toLowerCase()});
+        this.trigger(ROTATE, options);
+        this.trigger(ROTATE + direction, options);
     };
 
     /**
      * rotating
      */
-    Touch.prototype.rotating = function (event) {
-        var angle, diff, delta, i, symbol, direction, options,
-            proxy = this.proxy,
-            current = this.current,
+    Touch.prototype.rotating = function (options) {
+        var angle, diff, delta, i, symbol, direction,
+            current = options.current,
             captured = false;
-        angle = parseInt(detectAngle(current), 10);
-        diff = parseInt(this.angle - angle, 10);
-        symbol = this.angleDiff < 0 ? "-" : "+";
+        angle = parseInt(this.detectAngle(current), 10);
+        diff = parseInt(options.angle - angle, 10);
+        symbol = options.angleDiff < 0 ? "-" : "+";
         i = 0;
-        while (Math.abs(diff - this.angleDiff) > 90 &&
+        while (Math.abs(diff - options.angleDiff) > 90 &&
             i++ < 10) {
             if (symbol === '+') {
                 diff += 180;
@@ -1053,15 +1060,16 @@ console.log('fireEvent', items, options);
             }
         }
         diff = parseInt(diff, 10);
-        delta = this.lastAngle - angle;
-        if ((Math.abs(diff) > defaults.rotateMinAngle || this.angleDiff !== 0) &&
+        delta = options.lastAngle - angle;
+        if ((Math.abs(diff) > this.defaults.rotateMinAngle ||
+            options.angleDiff !== 0) &&
             delta !== 0) {
-            this.lastAngle = angle;
-            this.angleDiff = diff;
+            options.lastAngle = angle;
+            options.angleDiff = diff;
             direction = diff > 0 ? RIGHT : LEFT;
-            options = {event: event, proxy: proxy, touches: start,
-                direction: direction.toLowerCase(), angle: diff, delta: delta};
-            trigger(ROTATING, options);
+            options = this.clone(options, {direction: direction.toLowerCase(),
+                angle: diff, delta: delta});
+            this.trigger(ROTATING, options);
             captured = true;
         }
         return captured;
@@ -1070,38 +1078,36 @@ console.log('fireEvent', items, options);
     /**
      * pinch
      */
-    Touch.prototype.pinch = function (event) {
-        var proxy = this.proxy,
-            distanceDiff = this.distanceDiff,
-            scale = this.scale,
-            direction = distanceDiff > 0 ? OUT : IN,
-            options = {event: event, proxy: proxy, touches: start,
-                distance: distanceDiff, direction: direction.toLowerCase(), scale: scale};
-        trigger(PINCH, options);
-        trigger(PINCH + direction, options);
+    Touch.prototype.pinch = function (options) {
+        var distanceDiff = options.distanceDiff,
+            scale = options.scale,
+            direction = distanceDiff > 0 ? OUT : IN;
+        options = this.clone(options, {distance: distanceDiff,
+            direction: direction.toLowerCase(), scale: scale});
+        this.trigger(PINCH, options);
+        this.trigger(PINCH + direction, options);
     };
 
     /**
      * pinching
      */
-    Touch.prototype.pinching = function (event) {
-        var distance, diff, delta, scale, direction, options,
-            proxy = this.proxy,
-            current = this.current,
+    Touch.prototype.pinching = function (options) {
+        var distance, diff, delta, scale, direction,
+            proxy = options.proxy,
+            current = options.current,
             captured = false;
-        distance = parseInt(detectDistance(current), 10);
-        diff = distance - this.distance;
-        delta = distance - this.lastDistance;
-        if (Math.abs(diff) > defaults.pinchMinDistance &&
+        distance = parseInt(this.detectDistance(current), 10);
+        diff = distance - options.distance;
+        delta = distance - options.lastDistance;
+        if (Math.abs(diff) > this.defaults.pinchMinDistance &&
             delta !== 0) {
-            this.lastDistance = distance;
-            this.distanceDiff = diff;
-            this.scale = scale = Math.abs(distance) / Math.abs(this.distance);
+            options.lastDistance = distance;
+            options.distanceDiff = diff;
+            options.scale = scale = Math.abs(distance) / Math.abs(options.distance);
             direction = diff > 0 ? OUT : IN;
-            options = {event: event, proxy: proxy, touches: start,
-                direction: direction.toLowerCase(), distance: diff,
-                delta: delta, scale: scale};
-            trigger(PINCHING, options);
+            options = this.clone(options, {direction: direction.toLowerCase(),
+                distance: diff, delta: delta, scale: scale});
+            this.trigger(PINCHING, options);
             captured = true;
         }
         return captured;
@@ -1110,39 +1116,42 @@ console.log('fireEvent', items, options);
     /**
      * 判断是否是 tap
      */
-    Touch.prototype.isTap = function (event) {
-        var start = this.start,
-            current = this.current,
-            d = Math.abs(detectDistance(start, current)) < defaults.tapMaxDistance;
+    Touch.prototype.isTap = function (options) {
+        var defaults = this.defaults,
+            start = options.start,
+            current = options.current,
+            d = Math.abs(this.detectDistance(start, current)) < defaults.tapMaxDistance;
         return d;
     };
 
     /**
      * 判断是否是 2 fingers tap
      */
-    Touch.prototype.isTap2 = function (event) {
-        var start = this.start,
-            current = this.current,
-            d = Math.abs(detectDistance(start, current)) < defaults.tap2MaxDistance,
-            t = detectInterval(start, current) <= defaults.tap2MaxInterval;
+    Touch.prototype.isTap2 = function (options) {
+        var defaults = this.defaults,
+            start = options.start,
+            current = options.current,
+            d = Math.abs(this.detectDistance(start, current)) < defaults.tap2MaxDistance,
+            t = this.detectInterval(start, current) <= defaults.tap2MaxInterval;
         return d && t;
     };
 
     /**
      * 判断是否是 double tap
      */
-    Touch.prototype.isDoubleTap = function (event) {
-        var last = this.last,
-            start = this.start,
+    Touch.prototype.isDoubleTap = function (options) {
+        var defaults = this.defaults,
+            last = options.last,
+            start = options.start,
             doubleTapInterval,
             doubleTapDistance;
         if (last && last[0]) {
-            doubleTapInterval = detectInterval(last, start);
-            doubleTapDistance = Math.abs(detectDistance(start, last));
+            doubleTapInterval = this.detectInterval(last, start);
+            doubleTapDistance = Math.abs(this.detectDistance(start, last));
             if (doubleTapInterval  < defaults.doubleTapMaxInterval &&
                 doubleTapDistance < defaults.doubleTapMaxDistance) {
-                this.doubleTapInterval = doubleTapInterval;
-                this.doubleTapDistance = doubleTapDistance;
+                options.doubleTapInterval = doubleTapInterval;
+                options.doubleTapDistance = doubleTapDistance;
                 return true;
             }
         }
@@ -1152,21 +1161,23 @@ console.log('fireEvent', items, options);
     /**
      * 判断是否是 swipe
      */
-    Touch.prototype.isSwipe = function (event) {
-        var start = this.start,
-            current = this.current,
-            d = Math.abs(detectDistance(start, current)) > defaults.swipeMinDistance,
-            t = detectInterval(start, current) <= defaults.swipeMaxTime;
+    Touch.prototype.isSwipe = function (options) {
+        var defaults = this.defaults,
+            start = options.start,
+            current = options.current,
+            d = Math.abs(this.detectDistance(start, current)) > defaults.swipeMinDistance,
+            t = this.detectInterval(start, current) <= defaults.swipeMaxTime;
         return d && t;
     };
 
     /**
      * 判断是否是 drag
      */
-    Touch.prototype.isDrag = function (event) {
-        var start = this.start,
-            current = this.current,
-            d = Math.abs(detectDistance(start, current)) > defaults.dragMinDistance;
+    Touch.prototype.isDrag = function (options) {
+        var defaults = this.defaults,
+            start = options.start,
+            current = options.current,
+            d = Math.abs(this.detectDistance(start, current)) > defaults.dragMinDistance;
         return d;
     };
 
@@ -1280,5 +1291,5 @@ console.log('fireEvent', items, options);
         return t2.t - t1.t;
     };
 
-    window.touch = self;
+    window.Touch = Touch;
 })();
