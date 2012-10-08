@@ -179,15 +179,23 @@ function onRotateLeft(e) {
 function onRotateRight(e) {
     tip('rotate right', 'direction:' + e.direction + ' angle:' + e.angle);
 }
+function onRightTap(e, text) {
+    e.stopPropagation();
+    if (!e.touches) {
+        tip(e.type, text);
+    } else {
+        tip(e.type, 'x:' + e.touches[0].x + ' y:' + e.touches[0].y + ' ' + this.action + ':' + text);
+    }
+}
 var conf = {
     preventDefault: true,
     stopPropagation: true,
-    tap: false,
-    doubleTap: false,
-    drag: false,
-    swipe: false,
-    pinch: false,
-    rotate: false,
+    // tap: false,
+    // doubleTap: false,
+    // drag: false,
+    // swipe: false,
+    // pinch: false,
+    // rotate: false,
 };
 var events = {
     '.touch': onDefaultTap,
@@ -216,7 +224,7 @@ var events = {
     'rotateLeft .touch': onRotateLeft,
     'rotateRight .touch': onRotateRight,
     '.touch div.left': [onTap, {action: 'tap'}, ['left']],
-    'tap .touch .right': [onTap, {action: 'tap'}, ['right']],
+    'tap .touch .right': [onRightTap, {action: 'tap'}, ['right']],
     'tap .touch .not_exist': [onTap, {action: '*warn'}, ['never tap this']],
     '.touch span.left': [onTap, {action: '*warn'}, ['never tap this']],
     '.touch .right.left': [onTap, {action: '*warn'}, ['never tap this']],

@@ -47,7 +47,7 @@
             }
         },
         set: function(key, value) {
-            if (key) {
+            if (typeof key !== 'undefined') {
                 this.map[key] = value;
             }
         },
@@ -186,23 +186,20 @@
         }
     };
 
-    UIProxy.prototype.preventDefault = function () {
+    Touch.prototype.preventDefault = function () {
         return function() {
-            var event = this.event;
-            if (event && event.preventDefault) {
-                event.preventDefault();
-            }
+            // 无效方法
             this.isDefaultPrevented = true;
         };
     };
 
-    UIProxy.prototype.stopPropagation = function (options) {
+    Touch.prototype.stopPropagation = function () {
         return function() {
             this.isPropagationStopped = true;
         };
     };
 
-    UIProxy.prototype.stopImmediatePropagation = function (options) {
+    Touch.prototype.stopImmediatePropagation = function () {
         return function() {
             this.isImmediatePropagationStopped = true;
         };
@@ -386,7 +383,7 @@ console.log('addEvent', proxy);
             };
         };
 
-        options = {proxy: proxy};
+        options = {proxy: proxy, id: Math.random() * Math.random()};
         options.startFn = bind(this.onTouchStart());
         options.moveFn = bind(this.onTouchMove());
         options.endFn = bind(this.onTouchEnd());
@@ -426,6 +423,7 @@ console.log('removeEvent', proxy);
             }
         });
 
+
         this.proxyMap.remove(proxy);
     };
 
@@ -441,7 +439,7 @@ console.log('removeEvent', proxy);
                     selectorMap.each(function(items) {
                         active += items.length;
                     });
-                });console.log(this);
+                });
                 if (active > 0) {
                     this.addEvent(p);
                 } else {
@@ -555,7 +553,7 @@ console.log('removeEvent', proxy);
     /**
      * 从源目标开始向上查找匹配事件监听的节点
      */
-    Touch.prototype..walk = function (type, proxy, target, fn) {
+    Touch.prototype.walk = function (type, proxy, target, fn) {
         typeMap = this.eventMap.get(proxy);
         if (!typeMap) {
             return;
@@ -589,7 +587,7 @@ console.log('removeEvent', proxy);
                     if (this.isSelectorMatch(el, selector)) {
                         if (!targetMap.has(index)) {
                             targetMap.set(index, el);
-                            levelMap.set(selector, level);
+                            levelMap.set(index, level);
                             orders.push(index);
                         }
                         selectorArray.pop();
@@ -611,7 +609,7 @@ console.log('removeEvent', proxy);
             if (selectors[index].length === 0) {
                 selector = origins[index];
                 items = selectorMap.get(selector);
-                level = levelMap.get(selector);
+                level = levelMap.get(index);console.log(index, selector, level, levelMap);
                 fn.call(this, items, target, targetMap.get(index, target), level);
             }
         });
@@ -722,7 +720,6 @@ console.log('bind', type, selector, proxy, 'item', options);
             content = selectorMap.get(selector, []);
             content.push(item);
         }
-console.log(this);
         this.updateEvent(proxy);
     };
 
@@ -896,8 +893,6 @@ console.log(this);
      */
     Touch.prototype.onTouchEnd = function () {
         return function(event, options) {
-console.log('touch end', options, this);
-
             this.cancelEvent(event);
             this.hold(options, false);
 
@@ -972,20 +967,20 @@ console.log('touch end', options, this);
     };
 
     /**
-     *
+     * 合并属性
      */
-    Touch.prototype.clone = function(options, more) {
+    Touch.prototype.merge = function(options, more) {
         if (!more) {
             more = {};
         }
-        return _.extend({}, options, more);
+        return _.extend(options, more);
     };
 
     /**
      * tap
      */
     Touch.prototype.tap = function (options) {
-        this.trigger(TAP, this.clone(options));
+        this.trigger(TAP, options);
     };
 
     /**
@@ -995,7 +990,7 @@ console.log('touch end', options, this);
         var proxy = options.proxy,
             start = options.start,
             distance = this.detectDistance(start[0], start[1]);
-        options = this.clone(options, {distance: distance});
+        options = this.merge(options, {distance: distance});
         this.trigger(TAP2, options);
     };
 
@@ -1005,7 +1000,7 @@ console.log('touch end', options, this);
     Touch.prototype.doubleTap = function (options) {
         var interval = options.doubleTapInterval,
             distance = options.doubleTapDistance;
-        options = this.clone(options, {distance: distance, interval: interval});
+        options = this.merge(options, {distance: distance, interval: interval});
         this.trigger(DOUBLE_TAP, options);
     };
 
@@ -1033,7 +1028,7 @@ console.log('touch end', options, this);
             current = options.current,
             distance = this.detectDistance(start, current),
             direction = this.detectDirection(start, current);
-        options = this.clone(options, {direction: direction.toLowerCase(), distance: distance});
+        options = this.merge(options, {direction: direction.toLowerCase(), distance: distance});
         this.trigger(DRAG, options);
         this.trigger(DRAG + direction, options);
     };
@@ -1048,7 +1043,7 @@ console.log('touch end', options, this);
             distance = this.detectDistance(start, current),
             direction = this.detectDirection(start, current),
             delta = this.detectDistance(prev, current);
-        options = this.clone(options, {direction: direction.toLowerCase(), distance: distance, delta: delta});
+        options = this.merge(options, {direction: direction.toLowerCase(), distance: distance, delta: delta});
         this.trigger(DRAGGING, options);
     };
 
@@ -1060,7 +1055,7 @@ console.log('touch end', options, this);
             current = options.current,
             distance = this.detectDistance(start, current),
             direction = this.detectDirection(start, current);
-        options = this.clone(options, {direction: direction.toLowerCase(), distance: distance});
+        options = this.merge(options, {direction: direction.toLowerCase(), distance: distance});
         this.trigger(SWIPE, options);
         this.trigger(SWIPE + direction, options);
     };
@@ -1075,7 +1070,7 @@ console.log('touch end', options, this);
             distance = this.detectDistance(start, current),
             direction = this.detectDirection(start, current),
             delta = this.detectDistance(prev, current);
-        options = this.clone(options, {direction: direction.toLowerCase(), distance: distance, delta: delta});
+        options = this.merge(options, {direction: direction.toLowerCase(), distance: distance, delta: delta});
         this.trigger(SWIPING, options);
     };
 
@@ -1085,7 +1080,7 @@ console.log('touch end', options, this);
     Touch.prototype.rotate = function (options) {
         var angleDiff = options.angleDiff,
             direction = angleDiff > 0 ? RIGHT : LEFT;
-        options = this.clone(options, {angle: angleDiff, direction: direction.toLowerCase()});
+        options = this.merge(options, {angle: angleDiff, direction: direction.toLowerCase()});
         this.trigger(ROTATE, options);
         this.trigger(ROTATE + direction, options);
     };
@@ -1117,7 +1112,7 @@ console.log('touch end', options, this);
             options.lastAngle = angle;
             options.angleDiff = diff;
             direction = diff > 0 ? RIGHT : LEFT;
-            options = this.clone(options, {direction: direction.toLowerCase(),
+            options = this.merge(options, {direction: direction.toLowerCase(),
                 angle: diff, delta: delta});
             this.trigger(ROTATING, options);
             captured = true;
@@ -1132,7 +1127,7 @@ console.log('touch end', options, this);
         var distanceDiff = options.distanceDiff,
             scale = options.scale,
             direction = distanceDiff > 0 ? OUT : IN;
-        options = this.clone(options, {distance: distanceDiff,
+        options = this.merge(options, {distance: distanceDiff,
             direction: direction.toLowerCase(), scale: scale});
         this.trigger(PINCH, options);
         this.trigger(PINCH + direction, options);
@@ -1155,7 +1150,7 @@ console.log('touch end', options, this);
             options.distanceDiff = diff;
             options.scale = scale = Math.abs(distance) / Math.abs(options.distance);
             direction = diff > 0 ? OUT : IN;
-            options = this.clone(options, {direction: direction.toLowerCase(),
+            options = this.merge(options, {direction: direction.toLowerCase(),
                 distance: diff, delta: delta, scale: scale});
             this.trigger(PINCHING, options);
             captured = true;
