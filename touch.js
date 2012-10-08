@@ -609,7 +609,7 @@ console.log('removeEvent', proxy);
             if (selectors[index].length === 0) {
                 selector = origins[index];
                 items = selectorMap.get(selector);
-                level = levelMap.get(index);console.log(index, selector, level, levelMap);
+                level = levelMap.get(index);
                 fn.call(this, items, target, targetMap.get(index, target), level);
             }
         });

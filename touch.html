@@ -16,7 +16,6 @@ body {
 .box {
     background-color: #eee;
     text-align: center;
-    text-shadow: 0px 1px #fff;
     width: 100%;
 }
 .tip {
@@ -35,18 +34,36 @@ body {
     margin-top: 10px;
     font-size: 30px;
     line-height: 260px;
+    text-shadow: 0px 1px #fff;
     height: 260px;
     color: #999;
 }
+.left, .right {
+    position: relative;
+    width: 25%;
+    height: 260px;
+    background-color: #ddd;
+}
 .left {
     float: left;
-    width: 25%;
-    background-color: #ddd;
 }
 .right {
     float: right;
-    width: 25%;
-    background-color: #ddd;
+}
+.top, .bottom {
+    position: absolute;
+    height: 80px;
+    color: #fff;
+    font-size: 14px;
+    line-height: 80px;
+    text-shadow: 0px 1px #333;
+    background-color: #aaa;
+}
+.top {
+    top: 10px;
+}
+.bottom {
+    bottom: 10px;
 }
 .track {
     margin-top: 10px;
@@ -65,10 +82,22 @@ body {
 <div class="box touch">
     挠我
     <div class="box left">
+        <div class="box top">
+            左上
+        </div>
         左
+        <div class="box bottom">
+            左下
+        </div>
     </div>
     <div class="box right">
+        <div class="box top">
+            右上
+        </div>
         右
+        <div class="box bottom">
+            右下
+        </div>
     </div>
 </div>
 <div class="box track" id="track"></div>
