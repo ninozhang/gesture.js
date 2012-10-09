@@ -104,41 +104,41 @@
      * 默认配置
      */
     Touch.prototype.defaults = {
-            type: TAP,
+        type: TAP,
 
-            preventDefault: false,
-            stopPropagation: false,
-            stopImmediatePropagation: false,
+        preventDefault: false,
+        stopPropagation: false,
+        stopImmediatePropagation: false,
 
-            swipe: true,
-            swipeMaxTime: 350, // ms
-            swipeMinDistance : 20, // pixels
+        swipe: true,
+        swipeMaxTime: 350, // ms
+        swipeMinDistance : 20, // pixels
 
-            drag: true,
-            dragVertical: true,
-            dragHorizontal: true,
-            dragMinDistance: 20, // pixels
+        drag: true,
+        dragVertical: true,
+        dragHorizontal: true,
+        dragMinDistance: 20, // pixels
 
-            hold: true,
-            holdTimeout: 350, // ms
+        hold: true,
+        holdTimeout: 350, // ms
 
-            tap: true,
-            tapMaxDistance: 10, // pixels
+        tap: true,
+        tapMaxDistance: 15, // pixels
 
-            tap2: true,
-            tap2MaxInterval: 150, // ms
-            tap2MaxDistance: 15, // pixels
+        tap2: true,
+        tap2MaxInterval: 150, // ms
+        tap2MaxDistance: 20, // pixels
 
-            doubleTap: true,
-            doubleTapMaxInterval: 300, // ms
-            doubleTapMaxDistance: 20, // pixels
+        doubleTap: true,
+        doubleTapMaxInterval: 300, // ms
+        doubleTapMaxDistance: 20, // pixels
 
-            pinch: true,
-            pinchMinDistance: 10, // pixels
+        pinch: true,
+        pinchMinDistance: 10, // pixels
 
-            rotate: true,
-            rotateMinAngle: 10 // degrees
-        };
+        rotate: true,
+        rotateMinAngle: 10 // degrees
+    };
 
     /**
      * 事件监听配置
@@ -1014,7 +1014,6 @@ console.log('bind', type, selector, proxy, 'item', options);
             options.holdTimer = setTimeout(function() {
                 that.cancelEvent(options.event, true);
                 options.hold = true;
-                options = that.clone(options);
                 that.trigger(HOLD, options);
             }, this.defaults.holdTimeout);
         }
