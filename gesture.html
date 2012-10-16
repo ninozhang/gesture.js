@@ -1,12 +1,11 @@
-
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset=utf-8>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Touch.js</title>
+<title>Gesture.js</title>
 <script src="lib/lang.js"></script>
-<script src="touch.js"></script>
+<script src="gesture.js"></script>
 <style type="text/css">
 body {
     margin: 0;
@@ -117,7 +116,7 @@ document.addEventListener('touchend', onTouch);
 document.addEventListener('touchcancel', onTouch);
 </script>
 <script>
-var touch = new Touch();
+var gesture = new Gesture();
 function tip(text, sub) {
     sub || (sub = '');
     console.log('*tip*:' + text);
@@ -259,17 +258,17 @@ var events = {
     '.touch .right.left': [onTap, {action: '*warn'}, ['never tap this']],
     '.left .touch': [onTap, {action: '*warn'}, ['never tap this']],
 };
-touch.config(conf).on(events);
+gesture.config(conf).on(events);
 
 // 解绑事件测试
-// touch.off('.touch', true);
-// touch.off(events);
-// touch.off('true', true);
-// touch.off('true', 'document');
-// touch.off('.touch', 'document');
+// gesture.off('.touch', true);
+// gesture.off(events);
+// gesture.off('true', true);
+// gesture.off('true', 'document');
+// gesture.off('.touch', 'document');
 
 // 手动触发事件测试
-// touch.trigger('hold', ['manual']);
+// gesture.trigger('hold', ['manual']);
 </script>
 </body>
 </html>

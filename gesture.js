@@ -77,16 +77,16 @@
     }
 
     /**
-     * Touch
+     * Gesture
      */
-    function Touch() {
+    function Gesture() {
         this.init.apply(this, arguments);
     }
 
     /**
      * 事件类型
      */
-    Touch.prototype.types = [
+    Gesture.prototype.types = [
         DOUBLE_TAP, HOLD, TAP, TAP2, TOUCH,
         DRAG, DRAGGING,
         DRAG + LEFT, DRAG + RIGHT,
@@ -103,12 +103,14 @@
     /**
      * 默认配置
      */
-    Touch.prototype.defaults = {
+    Gesture.prototype.defaults = {
         type: TAP,
 
         preventDefault: false,
         stopPropagation: false,
         stopImmediatePropagation: false,
+
+        moveInterval: 10,
 
         swipe: true,
         swipeMaxTime: 350, // ms
@@ -137,7 +139,7 @@
         pinchMinDistance: 10, // pixels
 
         rotate: true,
-        rotateMinAngle: 10 // degrees
+        rotateMinAngle: 5 // degrees
     };
 
     /**
@@ -154,7 +156,7 @@
      *     }
      * }
      */
-    Touch.prototype.eventMap = null;
+    Gesture.prototype.eventMap = null;
 
     /**
      * 代理类配置
@@ -165,41 +167,47 @@
      *      }
      * }
      */
-    Touch.prototype.proxyMap = null;
+    Gesture.prototype.proxyMap = null;
     
     /**
      * 取消事件默认方法或者冒泡
      */
-    Touch.prototype.cancelEvent = function (event, force) {
+    Gesture.prototype.cancelEvent = function (event, force) {
         var defaults = this.defaults;
         if (defaults.preventDefault === true ||
             force === true) {
+            event.cancelBubble = true;
+            event.returnValue = false;
             event.preventDefault();
         }
         if (defaults.stopPropagation === true ||
             force === true) {
+            event.cancelBubble = true;
+            event.returnValue = false;
             event.stopPropagation();
         }
         if (defaults.stopImmediatePropagation === true ||
             force === true) {
+            event.cancelBubble = true;
+            event.returnValue = false;
             event.stopImmediatePropagation();
         }
     };
 
-    Touch.prototype.preventDefault = function () {
+    Gesture.prototype.preventDefault = function () {
         return function() {
             // 无效方法
             this.isDefaultPrevented = true;
         };
     };
 
-    Touch.prototype.stopPropagation = function () {
+    Gesture.prototype.stopPropagation = function () {
         return function() {
             this.isPropagationStopped = true;
         };
     };
 
-    Touch.prototype.stopImmediatePropagation = function () {
+    Gesture.prototype.stopImmediatePropagation = function () {
         return function() {
             this.isImmediatePropagationStopped = true;
         };
@@ -208,7 +216,7 @@
     /**
      * 简单的元素选择器
      */
-    Touch.prototype.$ = function (selector) {
+    Gesture.prototype.$ = function (selector) {
         var matches = this.selectorExec(selector);
 
         // 处理 document
@@ -237,7 +245,7 @@
     /**
      * 初始化
      */
-    Touch.prototype.init = function(options) {
+    Gesture.prototype.init = function(options) {
         if (options) {
             _.extend(this.defaults, options.defaults);
         }
@@ -247,7 +255,7 @@
     /**
      * 重置所有环境
      */
-    Touch.prototype.reset = function (resetDefaults) {
+    Gesture.prototype.reset = function (resetDefaults) {
         if (this.proxyMap) {
             this.proxyMap.each(function(context, selector) {
                 this.removeEvent(selector);
@@ -264,7 +272,7 @@
     /**
      * 配置默认选项
      */
-    Touch.prototype.config = function (key, value) {
+    Gesture.prototype.config = function (key, value) {
         if (_.isObject(key)) {
             _.each(key, function(v, k) {
                 this.defaults[k] = v;
@@ -278,7 +286,7 @@
     /**
      * 解析 item
      */
-    Touch.prototype.parseItem = function (item) {
+    Gesture.prototype.parseItem = function (item) {
         if (!item) {
             return;
         }
@@ -308,7 +316,7 @@
      *  [fn, args]
      *  [fn, context, args]
      */
-    Touch.prototype.on = function (selectors, proxy, item, options) {
+    Gesture.prototype.on = function (selectors, proxy, item, options) {
         if (_.isObject(selectors)) {
             _.each(selectors, function(item, selector) {
                 this.on(selector, proxy, item, options);
@@ -342,14 +350,14 @@
      * 解绑委托在指定元素上的所有响应函数
      *  off(true, selector)
      */
-    Touch.prototype.off = function (selectors, proxy, item) {
+    Gesture.prototype.off = function (selectors, proxy, item) {
         if (_.isObject(selectors)) {
             _.each(selectors, function(item, selector) {
                 this.off(selector, proxy, item);
             }, this);
         } else if (_.isString(selectors)) {
             this.eachSelector(selectors, function(type, selector) {
-console.log('off:', type, selector, proxy, item, true);
+// console.log('off:', type, selector, proxy, item, true);
                 this.bindEvent(type, selector, proxy, item, true);
             }, this);
         } else if (selectors === true &&
@@ -363,8 +371,8 @@ console.log('off:', type, selector, proxy, item, true);
     /**
      * 绑定元素事件监听
      */
-    Touch.prototype.addEvent = function (proxy) {
-console.log('addEvent', proxy);
+    Gesture.prototype.addEvent = function (proxy) {
+// console.log('addEvent', proxy);
         if (!proxy) {
             return;
         }
@@ -402,8 +410,8 @@ console.log('addEvent', proxy);
     /**
      * 解绑元素事件监听
      */
-    Touch.prototype.removeEvent = function (proxy) {
-console.log('removeEvent', proxy);
+    Gesture.prototype.removeEvent = function (proxy) {
+// console.log('removeEvent', proxy);
         if (!proxy) {
             return;
         }
@@ -431,7 +439,7 @@ console.log('removeEvent', proxy);
      * 更新元素事件监听
      * 如果没有监听就移除，如果还有加入监听则
      */
-    Touch.prototype.updateEvent = function (proxy) {
+    Gesture.prototype.updateEvent = function (proxy) {
         this.eventMap.each(function(typeMap, p) {
             if (!proxy || proxy === p) {
                 var active = 0;
@@ -452,7 +460,7 @@ console.log('removeEvent', proxy);
     /**
      * 分解选择器并遍历
      */
-    Touch.prototype.eachSelector = function (selectors, iterator) {
+    Gesture.prototype.eachSelector = function (selectors, iterator) {
         var items, type, selector;
         selectors = selectors.split(',');
         _.each(selectors, function(item) {
@@ -470,7 +478,7 @@ console.log('removeEvent', proxy);
     /**
      * 拆分选择器
      */
-    Touch.prototype.splitSelector = function (selectors) {
+    Gesture.prototype.splitSelector = function (selectors) {
         var a, s;
         if (_.isArray(selectors)) {
             a = [];
@@ -493,7 +501,7 @@ console.log('removeEvent', proxy);
     /**
      * 选择器分解
      */
-    Touch.prototype.selectorExec = function (selector) {
+    Gesture.prototype.selectorExec = function (selector) {
         if (!selector) {
             return [];
         }
@@ -512,7 +520,7 @@ console.log('removeEvent', proxy);
     /**
      * 是否匹配选择器
      */
-    Touch.prototype.isSelectorMatch = function (el, selector) {
+    Gesture.prototype.isSelectorMatch = function (el, selector) {
         if (!el || !selector) {
             return false;
         }
@@ -553,7 +561,7 @@ console.log('removeEvent', proxy);
     /**
      * 从源目标开始向上查找匹配事件监听的节点
      */
-    Touch.prototype.walk = function (type, proxy, target, fn) {
+    Gesture.prototype.walk = function (type, proxy, target, fn) {
         typeMap = this.eventMap.get(proxy);
         if (!typeMap) {
             return;
@@ -629,8 +637,8 @@ console.log('removeEvent', proxy);
      * 解绑在所有父级元素所有响应函数
      *  (type, selector, true, undefined, true)
      */
-    Touch.prototype.bindEvent = function (type, selector, proxy, item, options) {
-console.log('bind', type, selector, proxy, 'item', options);
+    Gesture.prototype.bindEvent = function (type, selector, proxy, item, options) {
+// console.log('bind', type, selector, proxy, 'item', options);
         if (!type || !_.isString(type) ||
             !selector || !_.isString(selector)) {
             return;
@@ -726,7 +734,7 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * 向绑定事件监听的元素派发事件
      */
-    Touch.prototype.trigger = function (type, options) {
+    Gesture.prototype.trigger = function (type, options) {
         var proxy, event,
             typeMap, selectorMap,
             fireEvent = this.fireEvent;
@@ -784,7 +792,7 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * 触发事件
      */
-    Touch.prototype.fireEvent = function (items, options) {
+    Gesture.prototype.fireEvent = function (items, options) {
         var fn, context, args, target, iterator;
         if (!options) {
             options = {};
@@ -819,9 +827,9 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * 响应触摸开始
      */
-    Touch.prototype.onTouchStart = function () {
+    Gesture.prototype.onTouchStart = function () {
         return function(event, options) {
-//console.log('touch start', options, this);
+// console.log('touch start', options, this);
             this.cancelEvent(event);
 
             var start = this.extractTouches(event.touches),
@@ -844,8 +852,8 @@ console.log('bind', type, selector, proxy, 'item', options);
                     this.hold(options);
                 }
             } else if (fingers === 2) {
-                options.angle = parseInt(this.detectAngle(start), 10);
-                options.distance = parseInt(this.detectDistance(start), 10);
+                options.initAngle = this.detectAngle(start);
+                options.initDistance = this.detectDistance(start);
             }
         };
     };
@@ -853,17 +861,34 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * 响应触摸移动
      */
-    Touch.prototype.onTouchMove = function () {
+    Gesture.prototype.onTouchMove = function () {
         return function(event, options) {
-//console.log('touch move', options, this);
+// console.log('touch move', options, this);
+            var that = this,
+                defaults = this.defaults,
+                lastMoveTime = options.lastMoveTime,
+                moveInterval = defaults.moveInterval;
+
+            if (options.moveTimer) {
+                clearTimeout(options.moveTimer);
+            }
+            if (lastMoveTime &&
+                Date.now() - lastMoveTime < moveInterval) {
+                options.moveTimer = setTimeout(function() {
+                    that.onTouchMove(event, options);
+                }, moveInterval);
+                return;
+            }
+            options.lastMoveTime = Date.now();
+
             this.cancelEvent(event);
             this.hold(options, false);
 
+            options.moveEvent = event;
             options.prev = options.current;
             options.current = this.extractTouches(event.touches);
 
-            var defaults = this.defaults,
-                fingers = options.current.length;
+            var fingers = options.current.length;
 
             if (fingers === options.fingers) {
                 if (fingers === 1) {
@@ -877,13 +902,13 @@ console.log('bind', type, selector, proxy, 'item', options);
                     this.cancelEvent(event, true);
                     options.rotate = defaults.rotate && this.rotating(options);
                     options.pinch = defaults.pinch && this.pinching(options);
-                    if (!options.rotate && !options.pinch && defaults.drag) {
+                    if (defaults.drag) {
                         options.drag = true;
                         this.dragging(options);
                     }
                 }
             } else {
-                this.resetGesture();
+                this.resetGesture(options);
             }
         };
     };
@@ -891,10 +916,13 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * 响应触摸结束
      */
-    Touch.prototype.onTouchEnd = function () {
+    Gesture.prototype.onTouchEnd = function () {
         return function(event, options) {
+// console.log('touch end', options, this);
             this.cancelEvent(event);
             this.hold(options, false);
+
+            options.endEvent = event;
 
             var defaults = this.defaults,
                 fingers = options.fingers;
@@ -933,7 +961,7 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * 重置手势
      */
-    Touch.prototype.resetGesture = function (options, more) {
+    Gesture.prototype.resetGesture = function (options, more) {
         if (!more) {
             more = {};
         }
@@ -943,22 +971,32 @@ console.log('bind', type, selector, proxy, 'item', options);
         options.preventDefault = _.bind(this.preventDefault(), options);
         options.stopPropagation = _.bind(this.stopPropagation(), options);
         options.stopImmediatePropagation = _.bind(this.stopImmediatePropagation(), options);
+        // touchstart 的 event
+        options.event = null;
+        // touchmove 的 event
+        options.moveEvent = null;
+        // touchend 的 event
+        options.endEvent = null;
         options.last = options.start || [];
         options.start = more.start || [];
         options.touches = options.start;
         options.prev = more.prev || [];
         options.current = more.current || [];
         options.fingers = more.fingers || 0;
-        options.angle = more.angle || 0;
-        options.lastAngle = more.angle || 0;
+        options.angle = more.distance || 0;
+        options.initAngle = more.angle || 0;
+        options.lastAngle = more.angle || NaN;
         options.angleDiff = 0;
         options.distance = more.distance || 0;
+        options.initDistance = more.distance || 0;
         options.lastDistance = more.distance || 0;
         options.distanceDiff = 0;
+        options.scale = 1;
         options.tap2 = false;
         options.doubleTap = more.doubleTap || false;
         options.doubleTapInterval = more.doubleTapInterval || 0;
         options.doubleTapDistance = more.doubleTapDistance || 0;
+        options.lastMoveTime = 0;
         options.scale = 1;
         options.hold = false;
         options.drag = false;
@@ -969,7 +1007,7 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * 合并属性
      */
-    Touch.prototype.merge = function(options, more) {
+    Gesture.prototype.merge = function(options, more) {
         if (!more) {
             more = {};
         }
@@ -979,17 +1017,17 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * tap
      */
-    Touch.prototype.tap = function (options) {
+    Gesture.prototype.tap = function (options) {
         this.trigger(TAP, options);
     };
 
     /**
      * 2 fingers tap
      */
-    Touch.prototype.tap2 = function (options) {
+    Gesture.prototype.tap2 = function (options) {
         var proxy = options.proxy,
             start = options.start,
-            distance = this.detectDistance(start[0], start[1]);
+            distance = this.detectDistance(start);
         options = this.merge(options, {distance: distance});
         this.trigger(TAP2, options);
     };
@@ -997,7 +1035,7 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * double tap
      */
-    Touch.prototype.doubleTap = function (options) {
+    Gesture.prototype.doubleTap = function (options) {
         var interval = options.doubleTapInterval,
             distance = options.doubleTapDistance;
         options = this.merge(options, {distance: distance, interval: interval});
@@ -1007,11 +1045,12 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * hold
      */
-    Touch.prototype.hold = function (options, remove) {
+    Gesture.prototype.hold = function (options, remove) {
         clearTimeout(options.holdTimer);
         if (remove !== false) {
             var that = this;
             options.holdTimer = setTimeout(function() {
+                options.event.preventDefault();
                 that.cancelEvent(options.event, true);
                 options.hold = true;
                 that.trigger(HOLD, options);
@@ -1022,7 +1061,7 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * drag
      */
-    Touch.prototype.drag = function (options) {
+    Gesture.prototype.drag = function (options) {
         var start = options.start,
             current = options.current,
             distance = this.detectDistance(start, current),
@@ -1035,21 +1074,27 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * draging
      */
-    Touch.prototype.dragging = function (options) {
-        var start = options.start,
+    Gesture.prototype.dragging = function (options) {
+        var event = options.moveEvent,
+            start = options.start,
             prev = options.prev,
             current = options.current,
             distance = this.detectDistance(start, current),
             direction = this.detectDirection(start, current),
-            delta = this.detectDistance(prev, current);
-        options = this.merge(options, {direction: direction.toLowerCase(), distance: distance, delta: delta});
+            delta = this.detectDistance(prev, current),
+            deltaX = this.deltaX(prev, current),
+            deltaY = this.deltaY(prev, current);
+        this.cancelEvent(event, true);
+        options = this.merge(options, {direction: direction.toLowerCase(),
+            distance: distance, delta: delta,
+            deltaX: deltaX, deltaY: deltaY});
         this.trigger(DRAGGING, options);
     };
 
     /**
      * swipe
      */
-    Touch.prototype.swipe = function (options) {
+    Gesture.prototype.swipe = function (options) {
         var start = options.start,
             current = options.current,
             distance = this.detectDistance(start, current),
@@ -1062,7 +1107,7 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * swiping
      */
-    Touch.prototype.swping = function (options) {
+    Gesture.prototype.swping = function (options) {
         var start = options.start,
             prev = options.prev,
             current = options.current,
@@ -1076,7 +1121,7 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * rotate
      */
-    Touch.prototype.rotate = function (options) {
+    Gesture.prototype.rotate = function (options) {
         var angleDiff = options.angleDiff,
             direction = angleDiff > 0 ? RIGHT : LEFT;
         options = this.merge(options, {angle: angleDiff, direction: direction.toLowerCase()});
@@ -1087,30 +1132,29 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * rotating
      */
-    Touch.prototype.rotating = function (options) {
-        var angle, diff, delta, i, symbol, direction,
+    Gesture.prototype.rotating = function (options) {
+        var angle, diff, delta, symbol, direction,
             current = options.current,
             captured = false;
-        angle = parseInt(this.detectAngle(current), 10);
-        diff = parseInt(options.angle - angle, 10);
-        symbol = options.angleDiff < 0 ? "-" : "+";
-        i = 0;
-        while (Math.abs(diff - options.angleDiff) > 90 &&
-            i++ < 10) {
-            if (symbol === '+') {
-                diff += 180;
+        angle = this.detectAngle(current);
+        diff = options.initAngle - angle;
+        if (isNaN(options.lastAngle)) {
+            options.lastAngle = angle;
+        }
+        delta = options.lastAngle - angle;
+        while (Math.abs(delta) > 180) {
+            if (delta < 0) {
+                delta += 180;
             } else {
-                diff -= 180;
+                delta -= 180;
             }
         }
-        diff = parseInt(diff, 10);
-        delta = options.lastAngle - angle;
-        if ((Math.abs(diff) > this.defaults.rotateMinAngle ||
-            options.angleDiff !== 0) &&
+        if ((Math.abs(diff) > this.defaults.rotateMinAngle || options.angleDiff !== 0) &&
             delta !== 0) {
             options.lastAngle = angle;
             options.angleDiff = diff;
             direction = diff > 0 ? RIGHT : LEFT;
+console.log('angle:' + angle + ' delta:' + delta + ' direction:' + direction + ' after:' + (angle + delta));
             options = this.merge(options, {direction: direction.toLowerCase(),
                 angle: diff, delta: delta});
             this.trigger(ROTATING, options);
@@ -1122,7 +1166,7 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * pinch
      */
-    Touch.prototype.pinch = function (options) {
+    Gesture.prototype.pinch = function (options) {
         var distanceDiff = options.distanceDiff,
             scale = options.scale,
             direction = distanceDiff > 0 ? OUT : IN;
@@ -1135,22 +1179,22 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * pinching
      */
-    Touch.prototype.pinching = function (options) {
+    Gesture.prototype.pinching = function (options) {
         var distance, diff, delta, scale, direction,
             proxy = options.proxy,
             current = options.current,
             captured = false;
-        distance = parseInt(this.detectDistance(current), 10);
-        diff = distance - options.distance;
-        delta = distance - options.lastDistance;
+        distance = this.detectDistance(current);
+        diff = distance - options.initDistance;
+        delta = (options.lastDistance === 0) ? 0 : (distance - options.lastDistance);
+        options.lastDistance = distance;
         if (Math.abs(diff) > this.defaults.pinchMinDistance &&
             delta !== 0) {
-            options.lastDistance = distance;
             options.distanceDiff = diff;
-            options.scale = scale = Math.abs(distance) / Math.abs(options.distance);
+            options.scale = scale = Math.abs(distance) / Math.abs(options.initDistance);
             direction = diff > 0 ? OUT : IN;
             options = this.merge(options, {direction: direction.toLowerCase(),
-                distance: diff, delta: delta, scale: scale});
+                distance: distance, delta: delta, scale: scale});
             this.trigger(PINCHING, options);
             captured = true;
         }
@@ -1160,7 +1204,7 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * 判断是否是 tap
      */
-    Touch.prototype.isTap = function (options) {
+    Gesture.prototype.isTap = function (options) {
         var defaults = this.defaults,
             start = options.start,
             current = options.current,
@@ -1171,7 +1215,7 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * 判断是否是 2 fingers tap
      */
-    Touch.prototype.isTap2 = function (options) {
+    Gesture.prototype.isTap2 = function (options) {
         var defaults = this.defaults,
             start = options.start,
             current = options.current,
@@ -1183,7 +1227,7 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * 判断是否是 double tap
      */
-    Touch.prototype.isDoubleTap = function (options) {
+    Gesture.prototype.isDoubleTap = function (options) {
         var defaults = this.defaults,
             last = options.last,
             start = options.start,
@@ -1203,9 +1247,20 @@ console.log('bind', type, selector, proxy, 'item', options);
     };
 
     /**
+     * 判断是否是 drag
+     */
+    Gesture.prototype.isDrag = function (options) {
+        var defaults = this.defaults,
+            start = options.start,
+            current = options.current,
+            d = Math.abs(this.detectDistance(start, current)) > defaults.dragMinDistance;
+        return d;
+    };
+
+    /**
      * 判断是否是 swipe
      */
-    Touch.prototype.isSwipe = function (options) {
+    Gesture.prototype.isSwipe = function (options) {
         var defaults = this.defaults,
             start = options.start,
             current = options.current,
@@ -1215,20 +1270,9 @@ console.log('bind', type, selector, proxy, 'item', options);
     };
 
     /**
-     * 判断是否是 drag
-     */
-    Touch.prototype.isDrag = function (options) {
-        var defaults = this.defaults,
-            start = options.start,
-            current = options.current,
-            d = Math.abs(this.detectDistance(start, current)) > defaults.dragMinDistance;
-        return d;
-    };
-
-    /**
      * 提取 touch 信息
      */
-    Touch.prototype.extractTouches = function (touches) {
+    Gesture.prototype.extractTouches = function (touches) {
         var ts = [],
             length = touches.length,
             el, id, x, y, t;
@@ -1245,72 +1289,81 @@ console.log('bind', type, selector, proxy, 'item', options);
     };
 
     /**
+     * 提取对比的点
+     */
+    Gesture.prototype.extractPoints = function (start, end) {
+        var p1, p2;
+        if (start && start.length && start.length >= 2 &&
+            !end) {
+            p1 = start[0];
+            p2 = start[1];
+        } else if (start && start.length && start.length >= 1 &&
+            end && end.length && end.length >= 1) {
+            p1 = start[0];
+            p2 = end[0];
+        } else {
+            p1 = start;
+            p2 = end;
+        }
+        return {p1: p1, p2: p2};
+    };
+
+    /**
      * 检测角度
      */
-    Touch.prototype.detectAngle = function (start, end) {
-        var t1, t2;
-        if (!end) {
-            t1 = start[0];
-            t2 = start[1];
-        } else if (start.length) {
-            t1 = start[0];
-            t2 = end[0];
-        } else {
-            t1 = start;
-            t2 = end;
+    Gesture.prototype.detectAngle = function (start, end) {
+        var points = this.extractPoints(start, end),
+            p1 = points.p1,
+            p2 = points.p2;
+        if (!p1 || !p2) {
+            return 0;
         }
-        var dx = t2.x - t1.x,
-            dy = t2.y - t1.y,
-            angle = Math.atan((dy) * -1 / (dx)) * (180 / Math.PI);
+        var dx = p1.x - p2.x,
+            dy = p1.y - p2.y,
+            angle = Math.atan((dy) * -1 / (dx)) * (180 / Math.PI);console.log('origin angle:' + angle);
         if (angle < 0) {
-            angle += 180;
-        }
+            angle += 360;
+        }console.log('after angle:' + angle);
         return angle;
     };
 
     /**
      * 检测距离
      */
-    Touch.prototype.detectDistance = function (start, end) {
-        var t1, t2;
-        if (!end) {
-            t1 = start[0];
-            t2 = start[1];
-        } else if (start.length) {
-            t1 = start[0];
-            t2 = end[0];
-        } else {
-            t1 = start;
-            t2 = end;
+    Gesture.prototype.detectDistance = function (start, end) {
+        var points = this.extractPoints(start, end),
+            p1 = points.p1,
+            p2 = points.p2;
+        if (!p1 || !p2) {
+            return 0;
         }
-        var dx = t2.x - t1.x,
-            dy = t2.y - t1.y;
+// console.log(p1.x + ' ' + p1.y + ' ' + p2.x + ' ' + p2.y);
+        var dx = p2.x - p1.x,
+            dy = p2.y - p1.y;
         return Math.sqrt(dx * dx + dy * dy);
     };
 
     /**
      * 检测方向
      */
-    Touch.prototype.detectDirection = function (start, end) {
-        if (!start || !start[0] || !end || !end[0]) {
+    Gesture.prototype.detectDirection = function (start, end) {
+        var points = this.extractPoints(start, end),
+            p1 = points.p1,
+            p2 = points.p2;
+        if (!p1 || !p2) {
             return '';
         }
-        var x1 = start[0].x,
-            y1 = start[0].y,
-            x2 = end[0].x,
-            y2 = end[0].y,
-            dx = Math.abs(x1 - x2),
-            dy = Math.abs(y1 - y2),
-            proxy = this.proxy,
+        var dx = Math.abs(p1.x - p2.x),
+            dy = Math.abs(p1.y - p2.y),
             d;
         if (dx >= dy) {
-            if (x1 - x2 > 0) {
+            if (p1.x - p2.x > 0) {
                 d = LEFT;
             } else {
                 d = RIGHT;
             }
         } else {
-            if (y1 - y2 > 0) {
+            if (p1.y - p2.y > 0) {
                 d = UP;
             } else {
                 d = DOWN;
@@ -1322,20 +1375,41 @@ console.log('bind', type, selector, proxy, 'item', options);
     /**
      * 检测时间间隔
      */
-    Touch.prototype.detectInterval = function (start, end) {
-        var t1, t2;
-        if (!end) {
-            t1 = start[0];
-            t2 = start[1];
-        } else if (start.length) {
-            t1 = start[0];
-            t2 = end[0];
-        } else {
-            t1 = start;
-            t2 = end;
+    Gesture.prototype.detectInterval = function (start, end) {
+        var points = this.extractPoints(start, end),
+            p1 = points.p1,
+            p2 = points.p2;
+        if (!p1 || !p2) {
+            return 0;
         }
-        return t2.t - t1.t;
+        return p2.t - p1.t;
     };
 
-    window.Touch = Touch;
+    /**
+     * 检测时间间隔
+     */
+    Gesture.prototype.deltaX = function (start, end) {
+        var points = this.extractPoints(start, end),
+            p1 = points.p1,
+            p2 = points.p2;
+        if (!p1 || !p2) {
+            return 0;
+        }
+        return p2.x - p1.x;
+    };
+
+    /**
+     * 检测时间间隔
+     */
+    Gesture.prototype.deltaY = function (start, end) {
+        var points = this.extractPoints(start, end),
+            p1 = points.p1,
+            p2 = points.p2;
+        if (!p1 || !p2) {
+            return 0;
+        }
+        return p2.y - p1.y;
+    };
+
+    window.Gesture = Gesture;
 })();
