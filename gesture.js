@@ -1,5 +1,5 @@
 /**
- * touch.js
+ * gesture.js
  */
 (function() {
 
