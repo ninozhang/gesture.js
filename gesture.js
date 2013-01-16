@@ -247,7 +247,7 @@
      */
     Gesture.prototype.init = function(options) {
         if (options) {
-            _.extend(this.defaults, options.defaults);
+            _.extend(this.defaults, options);
         }
         this.reset();
     };
