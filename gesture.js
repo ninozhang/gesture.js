@@ -24,6 +24,10 @@
     var PINCH = 'pinch';
     var PINCHING = 'pinching';
 
+    var TOUCH_START = 'touchStart';
+    var TOUCH_MOVE = 'touchMove';
+    var TOUCH_END = 'touchEnd';
+
     var isMobile = navigator.userAgent.match(/(android|ipad;|ipod;|iphone;|iphone os|windows phone)/i);
 
     function uuid() {
@@ -105,6 +109,7 @@
      * 事件类型
      */
     Gesture.prototype.types = [
+        TOUCH_START, TOUCH_MOVE, TOUCH_END,
         DOUBLE_TAP, HOLD, TAP, TAP2, TOUCH,
         DRAG, DRAGGING,
         DRAG + LEFT, DRAG + RIGHT,
@@ -409,7 +414,7 @@
             };
         };
 
-        options = {proxy: proxy, id: Math.random() * Math.random()};
+        options = {proxy: proxy, id: uuid()};
         options.startFn = bind(this.onTouchStart());
         options.moveFn = bind(this.onTouchMove());
         options.endFn = bind(this.onTouchEnd());
@@ -857,7 +862,9 @@
     Gesture.prototype.onTouchStart = function () {
         return function(event, options) {
 // console.log('touch start', options, this);
+            this.isTouching = true;
             this.cancelEvent(event);
+            this.touchStart(options);
 
             var start = this.extractTouches(event),
                 fingers = start.length;
@@ -891,6 +898,11 @@
     Gesture.prototype.onTouchMove = function () {
         return function(event, options) {
 // console.log('touch move', options, this);
+            
+            if (!this.isTouching) {
+                return;
+            }
+
             var that = this,
                 defaults = this.defaults,
                 lastMoveTime = options.lastMoveTime,
@@ -909,6 +921,7 @@
             options.lastMoveTime = Date.now();
 
             this.cancelEvent(event);
+            this.touchMove(options);
             this.hold(options, false);
 
             options.moveEvent = event;
@@ -946,7 +959,9 @@
     Gesture.prototype.onTouchEnd = function () {
         return function(event, options) {
 // console.log('touch end', options, this);
+            this.isTouching = false;
             this.cancelEvent(event);
+            this.touchEnd(options);
             this.hold(options, false);
 
             options.endEvent = event;
@@ -992,6 +1007,7 @@
         if (!more) {
             more = {};
         }
+        options.isTouching = false;
         options.isDefaultPrevented = false;
         options.isImmediatePropagationStopped = false;
         options.isPropagationStopped = false;
@@ -1039,6 +1055,27 @@
             more = {};
         }
         return _.extend(options, more);
+    };
+
+    /**
+     * touchStart
+     */
+    Gesture.prototype.touchStart = function (options) {
+        this.trigger(TOUCH_START, options);
+    };
+
+    /**
+     * touchMove
+     */
+    Gesture.prototype.touchMove = function (options) {
+        this.trigger(TOUCH_MOVE, options);
+    };
+
+    /**
+     * touchEnd
+     */
+    Gesture.prototype.touchEnd = function (options) {
+        this.trigger(TOUCH_END, options);
     };
 
     /**

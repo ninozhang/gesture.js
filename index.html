@@ -124,6 +124,15 @@ function tip(text, sub) {
     document.getElementById('tip').innerHTML = text;
     document.getElementById('subtip').innerHTML = sub;
 }
+function onTouchStart(e) {
+    console.log('touch start', e);
+}
+function onTouchMove(e) {
+    console.log('touch move', e);
+}
+function onTouchEnd(e) {
+    console.log('touch end', e);
+}
 function onDefaultTap(e) {
     tip('default tap');
 }
@@ -226,6 +235,9 @@ var conf = {
     // rotate: false,
 };
 var events = {
+    'touchStart .touch': onTouchStart,
+    'touchMove .touch': onTouchMove,
+    'touchEnd .touch': onTouchEnd,
     '.touch': onDefaultTap,
     'tap .touch': [onTap, {action: 'say'}, ['hello']],
     'tap2 .touch': [onTap2, {action: 'sleep'}],
