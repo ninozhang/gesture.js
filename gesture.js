@@ -24,6 +24,24 @@
     var PINCH = 'pinch';
     var PINCHING = 'pinching';
 
+    var isMobile = navigator.userAgent.match(/(android|ipad;|ipod;|iphone;|iphone os|windows phone)/i);
+
+    function uuid() {
+        var S4 = function () {
+            return Math.floor(
+                Math.random() * 0x10000 /* 65536 */
+            ).toString(16);
+        };
+
+        return (
+            S4() + S4() + "-" +
+            S4() + "-" +
+            S4() + "-" +
+            S4() + "-" +
+            S4() + S4() + S4()
+        );
+    }
+
     function Map() {
         this.init.apply(this, arguments);
     }
@@ -397,10 +415,16 @@
         options.endFn = bind(this.onTouchEnd());
         _.each(els, function(el) {
             if (el && el.addEventListener) {
-                el.addEventListener('touchstart', options.startFn);
-                el.addEventListener('touchmove', options.moveFn);
-                el.addEventListener('touchend', options.endFn);
-                el.addEventListener('touchcancel', options.endFn);
+                if (isMobile) {
+                    el.addEventListener('touchstart', options.startFn);
+                    el.addEventListener('touchmove', options.moveFn);
+                    el.addEventListener('touchend', options.endFn);
+                    el.addEventListener('touchcancel', options.endFn);
+                } else {
+                    el.addEventListener('mousedown', options.startFn);
+                    el.addEventListener('mousemove', options.moveFn);
+                    el.addEventListener('mouseup', options.endFn);
+                }
             }
         });
 
@@ -428,6 +452,9 @@
                 el.removeEventListener('touchmove', options.moveFn);
                 el.removeEventListener('touchend', options.endFn);
                 el.removeEventListener('touchcancel', options.endFn);
+                el.removeEventListener('mousedown', options.startFn);
+                el.removeEventListener('mousemove', options.moveFn);
+                el.removeEventListener('mouseup', options.endFn);
             }
         });
 
@@ -832,7 +859,7 @@
 // console.log('touch start', options, this);
             this.cancelEvent(event);
 
-            var start = this.extractTouches(event.touches),
+            var start = this.extractTouches(event),
                 fingers = start.length;
 
             // 重置手势
@@ -886,7 +913,7 @@
 
             options.moveEvent = event;
             options.prev = options.current;
-            options.current = this.extractTouches(event.touches);
+            options.current = this.extractTouches(event);
 
             var fingers = options.current.length;
 
@@ -1272,18 +1299,28 @@ console.log('angle:' + angle + ' delta:' + delta + ' direction:' + direction + '
     /**
      * 提取 touch 信息
      */
-    Gesture.prototype.extractTouches = function (touches) {
-        var ts = [],
-            length = touches.length,
+    Gesture.prototype.extractTouches = function (event) {
+        var touches = event.touches,
+            ts = [],
             el, id, x, y, t;
-        for (var i = 0; i < length; i++) {
-            var touch = touches[i];
-            el = touch.target;
-            id = touch.identifier || Math.random() * 10000000;
-            x = touch.pageX;
-            y = touch.pageY;
-            t = new Date();
-            ts.push({el: el, id: id, x: x, y: y, t: t});
+        if (touches) {
+            for (var i = 0, len = touches.length; i < len; i++) {
+                var touch = touches[i];
+                el = touch.target;
+                id = touch.identifier || uuid();
+                x = touch.pageX;
+                y = touch.pageY;
+                t = new Date();
+                ts.push({el: el, id: id, x: x, y: y, t: t});
+            }
+        } else {
+            ts.push({
+                el: event.target,
+                id: uuid(),
+                x: event.clientX,
+                y: event.clientY,
+                t: new Date()
+            });
         }
         return ts;
     };
