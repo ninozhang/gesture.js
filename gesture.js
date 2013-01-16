@@ -3,16 +3,16 @@
  */
 (function() {
 
-    var LEFT = 'Left';
-    var RIGHT = 'Right';
-    var UP = 'Up';
-    var DOWN  = 'Down';
-    var IN = 'In';
-    var OUT = 'Out';
+    var LEFT = 'left';
+    var RIGHT = 'right';
+    var UP = 'up';
+    var DOWN  = 'down';
+    var IN = 'in';
+    var OUT = 'out';
 
     var DRAG = 'drag';
     var DRAGGING = 'dragging';
-    var DOUBLE_TAP = 'doubleTap';
+    var DOUBLE_TAP = 'doubletap';
     var HOLD = 'hold';
     var ROTATE = 'rotate';
     var ROTATING = 'rotating';
@@ -24,9 +24,9 @@
     var PINCH = 'pinch';
     var PINCHING = 'pinching';
 
-    var TOUCH_START = 'touchStart';
-    var TOUCH_MOVE = 'touchMove';
-    var TOUCH_END = 'touchEnd';
+    var TOUCH_START = 'touchstart';
+    var TOUCH_MOVE = 'touchmove';
+    var TOUCH_END = 'touchend';
 
     var isMobile = navigator.userAgent.match(/(android|ipad;|ipod;|iphone;|iphone os|windows phone)/i);
 
@@ -99,34 +99,9 @@
     }
 
     /**
-     * Gesture
-     */
-    function Gesture() {
-        this.init.apply(this, arguments);
-    }
-
-    /**
-     * 事件类型
-     */
-    Gesture.prototype.types = [
-        TOUCH_START, TOUCH_MOVE, TOUCH_END,
-        DOUBLE_TAP, HOLD, TAP, TAP2, TOUCH,
-        DRAG, DRAGGING,
-        DRAG + LEFT, DRAG + RIGHT,
-        DRAG + UP, DRAG + DOWN,
-        ROTATE, ROTATING,
-        ROTATE + LEFT, ROTATE + RIGHT,
-        SWIPE, SWIPING,
-        SWIPE + LEFT, SWIPE + RIGHT,
-        SWIPE + UP, SWIPE + DOWN,
-        PINCH, PINCHING,
-        PINCH + IN, PINCH + OUT
-    ];
-
-    /**
      * 默认配置
      */
-    Gesture.prototype.defaults = {
+    var defaults = {
         type: TAP,
 
         preventDefault: false,
@@ -164,6 +139,31 @@
         rotate: true,
         rotateMinAngle: 5 // degrees
     };
+
+    /**
+     * Gesture
+     */
+    function Gesture() {
+        this.init.apply(this, arguments);
+    }
+
+    /**
+     * 事件类型
+     */
+    Gesture.prototype.types = [
+        TOUCH_START, TOUCH_MOVE, TOUCH_END,
+        DOUBLE_TAP, HOLD, TAP, TAP2, TOUCH,
+        DRAG, DRAGGING,
+        DRAG + LEFT, DRAG + RIGHT,
+        DRAG + UP, DRAG + DOWN,
+        ROTATE, ROTATING,
+        ROTATE + LEFT, ROTATE + RIGHT,
+        SWIPE, SWIPING,
+        SWIPE + LEFT, SWIPE + RIGHT,
+        SWIPE + UP, SWIPE + DOWN,
+        PINCH, PINCHING,
+        PINCH + IN, PINCH + OUT
+    ];
 
     /**
      * 事件监听配置
@@ -252,16 +252,16 @@
 
         // 处理 class
         } if (matches[1] === '.') {
-            return document.getElementsByClassName(match[2]);
+            return document.getElementsByClassName(matches[2]);
 
         // 处理 id
         } else if (matches[1] === '#') {
-            var el = document.getElementById(match[2]);
+            var el = document.getElementById(matches[2]);
             return el ? [el] : [];
 
         // 处理 tagName
         } else if (matches[1] === selector) {
-            return document.getElementsByTagName(match[2]);
+            return document.getElementsByTagName(matches[2]);
         }
     };
 
@@ -269,23 +269,18 @@
      * 初始化
      */
     Gesture.prototype.init = function(options) {
-        if (options) {
-            _.extend(this.defaults, options);
-        }
+        this.defaults = _.extend({}, defaults, options);
         this.reset();
     };
 
     /**
      * 重置所有环境
      */
-    Gesture.prototype.reset = function (resetDefaults) {
+    Gesture.prototype.reset = function () {
         if (this.proxyMap) {
             this.proxyMap.each(function(context, selector) {
                 this.removeEvent(selector);
             }, this);
-        }
-        if (resetDefaults === true) {
-            this.defaults = _.extend({}, this.originDefaults);
         }
         this.proxyMap = new Map();
         this.eventMap = new Map();
@@ -497,8 +492,8 @@
         selectors = selectors.split(',');
         _.each(selectors, function(item) {
             items = item.split(' ');
-            if (items.length > 0 && this.types.indexOf(items[0]) > -1) {
-                type = items.shift();
+            if (items.length > 0 && items[0] && this.types.indexOf(items[0].toLowerCase()) > -1) {
+                type = items.shift().toLowerCase();
             } else {
                 type = this.defaults.type;
             }
@@ -675,6 +670,8 @@
             !selector || !_.isString(selector)) {
             return;
         }
+
+        // 截断选择器的前后空格
         selector = selector.trim();
 
         // 处理不指定 proxy 的情况
@@ -695,6 +692,7 @@
                 _.extend(item.options, options);
             }
         }
+
         var typeMap, selectorMap, content,
             remove = (options === true);
 
@@ -1130,7 +1128,7 @@
             current = options.current,
             distance = this.detectDistance(start, current),
             direction = this.detectDirection(start, current);
-        options = this.merge(options, {direction: direction.toLowerCase(), distance: distance});
+        options = this.merge(options, {direction: direction, distance: distance});
         this.trigger(DRAG, options);
         this.trigger(DRAG + direction, options);
     };
@@ -1149,7 +1147,7 @@
             deltaX = this.deltaX(prev, current),
             deltaY = this.deltaY(prev, current);
         this.cancelEvent(event, true);
-        options = this.merge(options, {direction: direction.toLowerCase(),
+        options = this.merge(options, {direction: direction,
             distance: distance, delta: delta,
             deltaX: deltaX, deltaY: deltaY});
         this.trigger(DRAGGING, options);
@@ -1163,7 +1161,7 @@
             current = options.current,
             distance = this.detectDistance(start, current),
             direction = this.detectDirection(start, current);
-        options = this.merge(options, {direction: direction.toLowerCase(), distance: distance});
+        options = this.merge(options, {direction: direction, distance: distance});
         this.trigger(SWIPE, options);
         this.trigger(SWIPE + direction, options);
     };
@@ -1178,7 +1176,7 @@
             distance = this.detectDistance(start, current),
             direction = this.detectDirection(start, current),
             delta = this.detectDistance(prev, current);
-        options = this.merge(options, {direction: direction.toLowerCase(), distance: distance, delta: delta});
+        options = this.merge(options, {direction: direction, distance: distance, delta: delta});
         this.trigger(SWIPING, options);
     };
 
@@ -1188,7 +1186,7 @@
     Gesture.prototype.rotate = function (options) {
         var angleDiff = options.angleDiff,
             direction = angleDiff > 0 ? RIGHT : LEFT;
-        options = this.merge(options, {angle: angleDiff, direction: direction.toLowerCase()});
+        options = this.merge(options, {angle: angleDiff, direction: direction});
         this.trigger(ROTATE, options);
         this.trigger(ROTATE + direction, options);
     };
@@ -1219,7 +1217,7 @@
             options.angleDiff = diff;
             direction = diff > 0 ? RIGHT : LEFT;
 console.log('angle:' + angle + ' delta:' + delta + ' direction:' + direction + ' after:' + (angle + delta));
-            options = this.merge(options, {direction: direction.toLowerCase(),
+            options = this.merge(options, {direction: direction,
                 angle: diff, delta: delta});
             this.trigger(ROTATING, options);
             captured = true;
@@ -1235,7 +1233,7 @@ console.log('angle:' + angle + ' delta:' + delta + ' direction:' + direction + '
             scale = options.scale,
             direction = distanceDiff > 0 ? OUT : IN;
         options = this.merge(options, {distance: distanceDiff,
-            direction: direction.toLowerCase(), scale: scale});
+            direction: direction, scale: scale});
         this.trigger(PINCH, options);
         this.trigger(PINCH + direction, options);
     };
@@ -1257,7 +1255,7 @@ console.log('angle:' + angle + ' delta:' + delta + ' direction:' + direction + '
             options.distanceDiff = diff;
             options.scale = scale = Math.abs(distance) / Math.abs(options.initDistance);
             direction = diff > 0 ? OUT : IN;
-            options = this.merge(options, {direction: direction.toLowerCase(),
+            options = this.merge(options, {direction: direction,
                 distance: distance, delta: delta, scale: scale});
             this.trigger(PINCHING, options);
             captured = true;
