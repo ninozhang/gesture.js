@@ -156,6 +156,9 @@ function onHold(e, text) {
         tip(e.type, 'x:' + e.touches[0].x + ' y:' + e.touches[0].y);
     }
 }
+function onHoldEnd(e) {
+    tip('hold end');
+}
 function onSwipe(e) {
     tip('swipe', 'direction:' + e.direction + ' distance:' + e.distance);
 }
@@ -243,6 +246,7 @@ var events = {
     'taP2 .touch': [onTap2, {action: 'sleep'}],
     'doublETap .touch': [onDoubleTap, ['coffee']],
     'hold .touch': onHold,
+    'holdend .touch': onHoldEnd,
     'swipe .touch': onSwipe,
     'swipINg .touch': onSwiping,
     'swipELeft .touch': onSwipeLeft,

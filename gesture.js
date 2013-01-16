@@ -6,7 +6,7 @@
     var LEFT = 'left';
     var RIGHT = 'right';
     var UP = 'up';
-    var DOWN  = 'down';
+    var DOWN = 'down';
     var IN = 'in';
     var OUT = 'out';
 
@@ -14,6 +14,7 @@
     var DRAGGING = 'dragging';
     var DOUBLE_TAP = 'doubletap';
     var HOLD = 'hold';
+    var HOLD_END = 'holdend';
     var ROTATE = 'rotate';
     var ROTATING = 'rotating';
     var SWIPE = 'swipe';
@@ -152,7 +153,7 @@
      */
     Gesture.prototype.types = [
         TOUCH_START, TOUCH_MOVE, TOUCH_END,
-        DOUBLE_TAP, HOLD, TAP, TAP2, TOUCH,
+        DOUBLE_TAP, HOLD, HOLD_END, TAP, TAP2, TOUCH,
         DRAG, DRAGGING,
         DRAG + LEFT, DRAG + RIGHT,
         DRAG + UP, DRAG + DOWN,
@@ -860,7 +861,7 @@
     Gesture.prototype.onTouchStart = function () {
         return function(event, options) {
 // console.log('touch start', options, this);
-            this.isTouching = true;
+            this.touching = true;
             this.cancelEvent(event);
             this.touchStart(options);
 
@@ -897,7 +898,7 @@
         return function(event, options) {
 // console.log('touch move', options, this);
             
-            if (!this.isTouching) {
+            if (!this.touching) {
                 return;
             }
 
@@ -932,16 +933,16 @@
                 if (fingers === 1) {
                     if (defaults.swipe && (options.swiping = this.isSwipe(options))) {
                         this.swping(options);
-                    } else if(defaults.drag && options.hold) {
-                        options.drag = true;
+                    } else if(defaults.drag && options.holding) {
+                        options.dragging = true;
                         this.dragging(options);
                     }
                 } else if (fingers === 2) {
                     this.cancelEvent(event, true);
-                    options.rotate = defaults.rotate && this.rotating(options);
-                    options.pinch = defaults.pinch && this.pinching(options);
+                    options.rotating = defaults.rotate && this.rotating(options);
+                    options.pinching = defaults.pinch && this.pinching(options);
                     if (defaults.drag) {
-                        options.drag = true;
+                        options.dragging = true;
                         this.dragging(options);
                     }
                 }
@@ -957,10 +958,10 @@
     Gesture.prototype.onTouchEnd = function () {
         return function(event, options) {
 // console.log('touch end', options, this);
-            this.isTouching = false;
+            this.touching = false;
             this.cancelEvent(event);
             this.touchEnd(options);
-            this.hold(options, false);
+            this.holdEnd(options);
 
             options.endEvent = event;
 
@@ -971,9 +972,9 @@
                     this.doubleTap(options);
                 } else if (defaults.swipe && this.isSwipe(options)) {
                     this.swipe(options);
-                } else if (defaults.drag && options.drag) {
+                } else if (defaults.drag && options.dragging) {
                     this.drag(options);
-                } else if (defaults.tap && !options.hold && this.isTap(options)) {
+                } else if (defaults.tap && !options.holding && this.isTap(options)) {
                     this.tap(options);
                 }
             } else if (fingers === 2) {
@@ -982,15 +983,15 @@
                     this.tap2(options);
                 }
                 if (!options.tap2) {
-                    if (defaults.rotate && options.rotate) {
+                    if (defaults.rotate && options.rotating) {
                         this.rotate(options);
                     }
-                    if (defaults.pinch && options.pinch) {
+                    if (defaults.pinch && options.pinching) {
                         this.pinch(options);
                     }
                     if (defaults.drag &&
-                        ((!options.pinch && !options.rotate && this.isDrag(options)) ||
-                            options.drag)) {
+                        ((!options.pinching && !options.rotating && this.isDrag(options)) ||
+                            options.dragging)) {
                         this.drag(options);
                     }
                 }
@@ -1005,7 +1006,6 @@
         if (!more) {
             more = {};
         }
-        options.isTouching = false;
         options.isDefaultPrevented = false;
         options.isImmediatePropagationStopped = false;
         options.isPropagationStopped = false;
@@ -1039,10 +1039,11 @@
         options.doubleTapDistance = more.doubleTapDistance || 0;
         options.lastMoveTime = 0;
         options.scale = 1;
-        options.hold = false;
-        options.drag = false;
-        options.pinch = false;
-        options.rotate = false;
+        options.touching = false;
+        options.holding = false;
+        options.dragging = false;
+        options.pinching = false;
+        options.rotating = false;
     };
 
     /**
@@ -1114,9 +1115,20 @@
             options.holdTimer = setTimeout(function() {
                 options.event.preventDefault();
                 that.cancelEvent(options.event, true);
-                options.hold = true;
+                options.holding = true;
                 that.trigger(HOLD, options);
             }, this.defaults.holdTimeout);
+        }
+    };
+
+    /**
+     * holdEnd
+     */
+    Gesture.prototype.holdEnd = function (options) {
+        clearTimeout(options.holdTimer);
+        if (options.holding === true) {
+            options.holding = false;
+            this.trigger(HOLD_END, options);
         }
     };
 
