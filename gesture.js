@@ -3,34 +3,165 @@
  */
 (function() {
 
-    var LEFT = 'left';
-    var RIGHT = 'right';
-    var UP = 'up';
-    var DOWN = 'down';
-    var IN = 'in';
-    var OUT = 'out';
-
-    var DRAG = 'drag';
-    var DRAGGING = 'dragging';
-    var DOUBLE_TAP = 'doubletap';
-    var HOLD = 'hold';
-    var HOLD_END = 'holdend';
-    var ROTATE = 'rotate';
-    var ROTATING = 'rotating';
-    var SWIPE = 'swipe';
-    var SWIPING = 'swiping';
-    var TAP = 'tap';
-    var TAP2 = 'tap2';
-    var TOUCH = 'touch';
-    var PINCH = 'pinch';
-    var PINCHING = 'pinching';
-
-    var TOUCH_START = 'touchstart';
-    var TOUCH_MOVE = 'touchmove';
-    var TOUCH_END = 'touchend';
-
     var isMobile = navigator.userAgent.match(/(android|ipad;|ipod;|iphone;|iphone os|windows phone)/i);
+    
+    var ArrayProto = Array.prototype,
+        ObjProto = Object.prototype,
+        FuncProto = Function.prototype;
 
+    var toString = ObjProto.toString,
+        slice = ArrayProto.slice;
+
+    var isArray = Array.isArray;
+
+    // 判断对象的类型
+    function type(obj) {
+        var t;
+        if (obj === null) {
+            t = String(obj);
+        } else if(typeof obj === 'undefined') {
+            return 'undefined';
+        } else {
+            t = toString.call(obj).toLowerCase();
+            t = t.substring(8, t.length - 1);
+        }
+        return t;
+    }
+
+    // 是否是对象
+    function isObject(obj) {
+        return obj === Object(obj);
+    }
+
+    // 是否是函数
+    function isFunction(obj) {
+        return type(obj) === 'function';
+    }
+
+    // 是否字符串
+    function isString(obj) {
+        return type(obj) == 'string';
+    }
+
+    // 是否不是数值
+    function isNaN(obj) {
+        // `NaN` is the only value for which `===` is not reflexive.
+        return obj !== obj;
+    }
+
+    // 是否未定义
+    function isUndef(obj) {
+        return obj === void 0;
+    }
+
+    // 是否已经定义
+    function isDef(obj) {
+        return !isUndef(obj);
+    }
+
+    /**
+     * 选择器分解
+     */
+    function selectorExec(selector) {
+        if (!selector) {
+            return [];
+        }
+
+        // 处理 class 和 id
+        var selectorExpr = /([\.#])(.*)/,
+            matches = selectorExpr.exec(selector);
+
+        // 处理 tagName
+        if (!matches) {
+            matches = [selector, null, selector];
+        }
+        return matches;
+    }
+
+    /**
+     * 简单的元素选择器
+     * 只实现了以下5种选择元素的功能
+     */
+    function $(selector) {
+        var matches = selectorExec(selector);
+
+        // 处理 document
+        if (matches[2] === 'document') {
+            return [document];
+
+        // 处理 body
+        } else if (matches[2] === 'body') {
+            return [document.body];
+
+        // 处理 class
+        } if (matches[1] === '.') {
+            return document.getElementsByClassName(matches[2]);
+
+        // 处理 id
+        } else if (matches[1] === '#') {
+            var el = document.getElementById(matches[2]);
+            return el ? [el] : [];
+
+        // 处理 tagName
+        } else if (matches[1] === selector) {
+            return document.getElementsByTagName(matches[2]);
+        }
+    }
+
+    // 扩展方法
+    function extend(obj) {
+        each(slice.call(arguments, 1), function(source) {
+            for (var prop in source) {
+                obj[prop] = source[prop];
+            }
+        });
+        return obj;
+    }
+
+    var breaker = {};
+
+    // 遍历
+    function each(obj, iterator, context) {
+        if (obj === null) {
+            return;
+        }
+        if (ObjProto.forEach && obj.forEach === ObjProto.forEach) {
+            obj.forEach(iterator, context);
+        } else if (obj.length === +obj.length) {
+            for (var i = 0, l = obj.length; i < l; i++) {
+                if (i in obj && iterator.call(context, obj[i], i, obj) === breaker) return;
+            }
+        } else {
+            for (var key in obj) {
+                if (iterator.call(context, obj[key], key, obj) === breaker) return;
+            }
+        }
+    }
+        
+    var ctor = function(){};
+
+    // 将方法的 this 绑定为指定的对象
+    function bind(fn, context) {
+        var args;
+        if (FuncProto.bind) {
+            return FuncProto.bind.apply(fn, slice.call(arguments, 1));
+        } else {
+            args = slice.call(arguments, 2);
+            var bound = function() {
+                if (!(this instanceof bound)) return fn.apply(context, args.concat(slice.call(arguments)));
+                ctor.prototype = func.prototype;
+                var self = new ctor;
+                var result = func.apply(self, args.concat(slice.call(arguments)));
+                if (Object(result) === result) return result;
+                return self;
+            };
+            return bound;
+        }
+    }
+
+    /**
+     * 生成随机字符串
+     */
     function uuid() {
         var S4 = function () {
             return Math.floor(
@@ -57,12 +188,12 @@
         },
         get: function(key, init) {
             if (!this.has(key) && init) {
-                this.map[key] = _.isFunction(init) ? init.call() : init;
+                this.map[key] = isFunction(init) ? init.call() : init;
             }
             return this.map[key];
         },
         has: function(key) {
-            return _.isDef(this.map[key]);
+            return isDef(this.map[key]);
         },
         add: function(key, value) {
             if (!this.has(key)) {
@@ -85,7 +216,7 @@
         },
         each: function(fn, context) {
             if (fn) {
-                _.each(this.map, function(value, key) {
+                each(this.map, function(value, key) {
                     fn.call(this, value, key);
                 }, context || this);
             }
@@ -99,6 +230,34 @@
         return new Map();
     }
 
+    /*----------业务逻辑----------*/
+
+    var LEFT = 'left';
+    var RIGHT = 'right';
+    var UP = 'up';
+    var DOWN = 'down';
+    var IN = 'in';
+    var OUT = 'out';
+
+    var DRAG = 'drag';
+    var DRAGGING = 'dragging';
+    var DOUBLE_TAP = 'doubletap';
+    var HOLD = 'hold';
+    var HOLD_END = 'holdend';
+    var ROTATE = 'rotate';
+    var ROTATING = 'rotating';
+    var SWIPE = 'swipe';
+    var SWIPING = 'swiping';
+    var TAP = 'tap';
+    var TAP2 = 'tap2';
+    var TOUCH = 'touch';
+    var PINCH = 'pinch';
+    var PINCHING = 'pinching';
+
+    var TOUCH_START = 'touchstart';
+    var TOUCH_MOVE = 'touchmove';
+    var TOUCH_END = 'touchend';
+
     /**
      * 默认配置
      */
@@ -109,6 +268,7 @@
         stopPropagation: false,
         stopImmediatePropagation: false,
 
+        // 移动时间响应时间间隔
         moveInterval: 10,
 
         swipe: true,
@@ -170,11 +330,11 @@
      * 事件监听配置
      * 数据结构
      * eventMap: {
-     *      proxy: {
-     *          type: {
-     *              selector: [
-     *                  {fn, context, args},
-     *                  {fn, context}
+     *      proxy: { // 事件托管元素
+     *          type: { // 事件类型
+     *              selector: [ // 事件过滤
+     *                  {fn, context, args}, // 处理函数, 上下文, 参数
+     *                  {fn, context} // 处理函数, 上下文
      *              ]
      *          }
      *     }
@@ -186,7 +346,7 @@
      * 代理类配置
      * 数据结构
      * proxyMap: {
-     *      proxy: {
+     *      proxy: { // 代理的元素
      *          startFn, moveFn, endFn
      *      }
      * }
@@ -238,39 +398,10 @@
     };
 
     /**
-     * 简单的元素选择器
-     */
-    Gesture.prototype.$ = function (selector) {
-        var matches = this.selectorExec(selector);
-
-        // 处理 document
-        if (matches[2] === 'document') {
-            return [document];
-
-        // 处理 body
-        } else if (matches[2] === 'body') {
-            return [document.body];
-
-        // 处理 class
-        } if (matches[1] === '.') {
-            return document.getElementsByClassName(matches[2]);
-
-        // 处理 id
-        } else if (matches[1] === '#') {
-            var el = document.getElementById(matches[2]);
-            return el ? [el] : [];
-
-        // 处理 tagName
-        } else if (matches[1] === selector) {
-            return document.getElementsByTagName(matches[2]);
-        }
-    };
-
-    /**
      * 初始化
      */
     Gesture.prototype.init = function(options) {
-        this.defaults = _.extend({}, defaults, options);
+        this.defaults = extend({}, defaults, options);
         this.reset();
     };
 
@@ -292,11 +423,12 @@
      * 配置默认选项
      */
     Gesture.prototype.config = function (key, value) {
-        if (_.isObject(key)) {
-            _.each(key, function(v, k) {
+        if (isObject(key)) {
+            each(key, function(v, k) {
                 this.defaults[k] = v;
             }, this);
-        } else if (_.isDef(value)) {
+
+        } else if (isDef(value)) {
             this.defaults[key] = value;
         }
         return this;
@@ -309,20 +441,31 @@
         if (!item) {
             return;
         }
+
         var fn, context, args;
-        if (_.isFunction(item)) {
+
+        // item 是响应函数
+        if (isFunction(item)) {
             fn = item;
-        } else if (_.isArray(item)) {
+
+        // item 是数组
+        } else if (isArray(item)) {
+            // 第一个参数是响应函数
             fn = item[0];
-            if (_.isArray(item[1])) {
-                args = item[1];
-            } else if (_.isObject(item[1])) {
+
+            // 第二个参数如果是对象则是上下文
+            if (isObject(item[1])) {
                 context = item[1];
             }
-            if (_.isArray(item[2])) {
+
+            // 第三个参数或第二个参数是数组则是参数数组
+            if (isArray(item[2])) {
                 args = item[2];
+            } else if (isArray(item[1])) {
+                args = item[1];
             }
         }
+
         return {fn: fn, context: context, args: args, options: {}};
     };
 
@@ -336,11 +479,11 @@
      *  [fn, context, args]
      */
     Gesture.prototype.on = function (selectors, proxy, item, options) {
-        if (_.isObject(selectors)) {
-            _.each(selectors, function(item, selector) {
+        if (isObject(selectors)) {
+            each(selectors, function(item, selector) {
                 this.on(selector, proxy, item, options);
             }, this);
-        } else if (_.isString(selectors)) {
+        } else if (isString(selectors)) {
             this.eachSelector(selectors, function(type, selector) {
                 this.bindEvent(type, selector, proxy, item, options);
             }, this);
@@ -370,17 +513,16 @@
      *  off(true, selector)
      */
     Gesture.prototype.off = function (selectors, proxy, item) {
-        if (_.isObject(selectors)) {
-            _.each(selectors, function(item, selector) {
+        if (isObject(selectors)) {
+            each(selectors, function(item, selector) {
                 this.off(selector, proxy, item);
             }, this);
-        } else if (_.isString(selectors)) {
+        } else if (isString(selectors)) {
             this.eachSelector(selectors, function(type, selector) {
-// console.log('off:', type, selector, proxy, item, true);
                 this.bindEvent(type, selector, proxy, item, true);
             }, this);
         } else if (selectors === true &&
-            (_.isString(proxy) || _.isUndef(proxy))) {
+            (isString(proxy) || isUndef(proxy))) {
             proxy = (proxy || 'document').trim();
             this.removeEvent(proxy);
         }
@@ -391,15 +533,16 @@
      * 绑定元素事件监听
      */
     Gesture.prototype.addEvent = function (proxy) {
-// console.log('addEvent', proxy);
         if (!proxy) {
             return;
         }
 
         var that = this,
             bind,
-            els = this.$(proxy),
+            els = $(proxy),
             options = this.proxyMap.get(proxy);
+
+        // 找不到托管的元素或者已存在相应的处理函数则不需要再添加
         if (!els || options) {
             return;
         }
@@ -410,11 +553,16 @@
             };
         };
 
-        options = {proxy: proxy, id: uuid()};
-        options.startFn = bind(this.onTouchStart());
-        options.moveFn = bind(this.onTouchMove());
-        options.endFn = bind(this.onTouchEnd());
-        _.each(els, function(el) {
+        options = {
+            proxy: proxy,
+            id: uuid(),
+            startFn: bind(this.onTouchStart()),
+            moveFn: bind(this.onTouchMove()),
+            endFn: bind(this.onTouchEnd())
+        };
+
+        // 执行事件绑定
+        each(els, function(el) {
             if (el && el.addEventListener) {
                 if (isMobile) {
                     el.addEventListener('touchstart', options.startFn);
@@ -436,7 +584,6 @@
      * 解绑元素事件监听
      */
     Gesture.prototype.removeEvent = function (proxy) {
-// console.log('removeEvent', proxy);
         if (!proxy) {
             return;
         }
@@ -446,8 +593,8 @@
             return;
         }
 
-        var els = this.$(proxy);
-        _.each(els, function(el) {
+        var els = $(proxy);
+        each(els, function(el) {
             if (el && el.removeEventListener) {
                 el.removeEventListener('touchstart', options.startFn);
                 el.removeEventListener('touchmove', options.moveFn);
@@ -458,7 +605,6 @@
                 el.removeEventListener('mouseup', options.endFn);
             }
         });
-
 
         this.proxyMap.remove(proxy);
     };
@@ -471,9 +617,13 @@
         this.eventMap.each(function(typeMap, p) {
             if (!proxy || proxy === p) {
                 var active = 0;
-                typeMap.each(function(selectorMap) {
-                    selectorMap.each(function(items) {
-                        active += items.length;
+                typeMap.each(function(selectorMap, selector) {
+                    selectorMap.each(function(items, key) {
+                        if (items.length === 0) {
+                            selectorMap.remove(key);
+                        } else {
+                            active += items.length;
+                        }
                     });
                 });
                 if (active > 0) {
@@ -491,7 +641,7 @@
     Gesture.prototype.eachSelector = function (selectors, iterator) {
         var items, type, selector;
         selectors = selectors.split(',');
-        _.each(selectors, function(item) {
+        each(selectors, function(item) {
             items = item.split(' ');
             if (items.length > 0 && items[0] && this.types.indexOf(items[0].toLowerCase()) > -1) {
                 type = items.shift().toLowerCase();
@@ -506,15 +656,15 @@
     /**
      * 拆分选择器
      */
-    Gesture.prototype.splitSelector = function (selectors) {
+    var splitSelector = function (selectors) {
         var a, s;
-        if (_.isArray(selectors)) {
+        if (isArray(selectors)) {
             a = [];
-            _.each(selectors, function(selector) {
+            each(selectors, function(selector) {
                 s = splitSelector(selector);
                 a.push(s);
             });
-        } else if (_.isString(selectors)) {
+        } else if (isString(selectors)) {
             if (!selectors) {
                 return [];
             }
@@ -527,25 +677,6 @@
     };
 
     /**
-     * 选择器分解
-     */
-    Gesture.prototype.selectorExec = function (selector) {
-        if (!selector) {
-            return [];
-        }
-
-        // 处理 class 和 id
-        var selectorExpr = /([\.#])(.*)/,
-            matches = selectorExpr.exec(selector);
-
-        // 处理 tagName
-        if (!matches) {
-            matches = [selector, null, selector];
-        }
-        return matches;
-    };
-
-    /**
      * 是否匹配选择器
      */
     Gesture.prototype.isSelectorMatch = function (el, selector) {
@@ -553,18 +684,18 @@
             return false;
         }
 
-        var array = this.splitSelector(selector),
+        var array = splitSelector(selector),
             className, matches, isMatch;
         for(var i = 0; i < array.length; i++) {
             var part = array[i];
-            matches = this.selectorExec(part);
+            matches = selectorExec(part);
             isMatch = false;
             
             // 处理 class
             if (matches[1] === '.') {
                 className = el.className;
                 if (className) {
-                    _.each(className.split(' '), function(c) {
+                    each(className.split(' '), function(c) {
                         if (c === matches[2]) {
                             isMatch = true;
                         }
@@ -610,12 +741,12 @@
             selector, length;
 
         // 将 'div .a .b.c' 分解为 ['div', '.a', '.b.c']
-        _.each(origins, function(selector) {
+        each(origins, function(selector) {
             selectors.push(selector.split(' '));
         });
 
         while (el) {
-            _.each(selectors, function(selectorArray, index) {
+            each(selectors, function(selectorArray, index) {
                 length = selectorArray.length;
                 if (length > 0) {
                     selector = selectorArray[length - 1];
@@ -641,7 +772,7 @@
         }
 
         var items;
-        _.each(orders, function(index) {
+        each(orders, function(index) {
             if (selectors[index].length === 0) {
                 selector = origins[index];
                 items = selectorMap.get(selector);
@@ -667,8 +798,8 @@
      */
     Gesture.prototype.bindEvent = function (type, selector, proxy, item, options) {
 // console.log('bind', type, selector, proxy, 'item', options);
-        if (!type || !_.isString(type) ||
-            !selector || !_.isString(selector)) {
+        if (!type || !isString(type) ||
+            !selector || !isString(selector)) {
             return;
         }
 
@@ -676,21 +807,21 @@
         selector = selector.trim();
 
         // 处理不指定 proxy 的情况
-        if (_.isFunction(proxy) || _.isObject(proxy)) {
+        if (isFunction(proxy) || isObject(proxy)) {
             item = proxy;
             proxy = 'document';
 
         // 处理 proxy 为字符串的情况
-        } else if (_.isString(proxy) || _.isUndef(proxy)) {
+        } else if (isString(proxy) || isUndef(proxy)) {
             proxy = (proxy || 'document').trim();
         }
 
         // 解析 item
         if (item) {
             item = this.parseItem(item);
-            _.extend(item.options, this.defaults);
-            if (_.isObject(options)) {
-                _.extend(item.options, options);
+            extend(item.options, this.defaults);
+            if (isObject(options)) {
+                extend(item.options, options);
             }
         }
 
@@ -739,7 +870,7 @@
                     }
 
                     var newContent = [];
-                    _.each(content, function(c) {
+                    each(content, function(c) {
                         if (c.fn !== item.fn) {
                             newContent.push(c);
                         }
@@ -772,19 +903,19 @@
 
         if (!options) {
             options = {};
-        } else if (_.isArray(options)) {
+        } else if (isArray(options)) {
             options = {args: options};
-        } else if (_.isString(options)) {
+        } else if (isString(options)) {
             proxy = options;
             options = {proxy: proxy};
-        } else if (_.isObject(options)) {
+        } else if (isObject(options)) {
             proxy = options.proxy;
             event = options.event;
         }
 
         options.type = type;
 
-        if (!proxy || !_.isString(proxy)) {
+        if (!proxy || !isString(proxy)) {
             proxy = 'document';
         }
 
@@ -841,7 +972,7 @@
             args.unshift(options);
             fn.apply(context, args);
         };
-        if (_.isArray(items)) {
+        if (isArray(items)) {
             var length = items.length;
             for (var i = 0; i < length; i++) {
                 var item = items[i];
@@ -1009,9 +1140,9 @@
         options.isDefaultPrevented = false;
         options.isImmediatePropagationStopped = false;
         options.isPropagationStopped = false;
-        options.preventDefault = _.bind(this.preventDefault(), options);
-        options.stopPropagation = _.bind(this.stopPropagation(), options);
-        options.stopImmediatePropagation = _.bind(this.stopImmediatePropagation(), options);
+        options.preventDefault = bind(this.preventDefault(), options);
+        options.stopPropagation = bind(this.stopPropagation(), options);
+        options.stopImmediatePropagation = bind(this.stopImmediatePropagation(), options);
         // touchstart 的 event
         options.event = null;
         // touchmove 的 event
@@ -1053,7 +1184,7 @@
         if (!more) {
             more = {};
         }
-        return _.extend(options, more);
+        return extend(options, more);
     };
 
     /**
