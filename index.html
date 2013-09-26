@@ -226,6 +226,9 @@ function onRightTap(e, text) {
         tip(e.type, 'x:' + e.touches[0].x + ' y:' + e.touches[0].y + ' ' + this.action + ':' + text);
     }
 }
+function onStopPropagation(e) {
+    e.stopPropagation();
+}
 var conf = {
     preventDefault: true,
     stopPropagation: true,
@@ -272,6 +275,7 @@ var events = {
     '.touch span.left': [onTap, {action: '*warn'}, ['never tap this']],
     '.touch .right.left': [onTap, {action: '*warn'}, ['never tap this']],
     '.left .touch': [onTap, {action: '*warn'}, ['never tap this']],
+    '.box.top': onStopPropagation
 };
 gesture.config(conf).on(events);
 

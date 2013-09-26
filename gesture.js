@@ -137,27 +137,6 @@
             }
         }
     }
-        
-    var ctor = function(){};
-
-    // 将方法的 this 绑定为指定的对象
-    function bind(fn, context) {
-        var args;
-        if (FuncProto.bind) {
-            return FuncProto.bind.apply(fn, slice.call(arguments, 1));
-        } else {
-            args = slice.call(arguments, 2);
-            var bound = function() {
-                if (!(this instanceof bound)) return fn.apply(context, args.concat(slice.call(arguments)));
-                ctor.prototype = func.prototype;
-                var self = new ctor;
-                var result = func.apply(self, args.concat(slice.call(arguments)));
-                if (Object(result) === result) return result;
-                return self;
-            };
-            return bound;
-        }
-    }
 
     /**
      * 生成随机字符串
@@ -376,25 +355,6 @@
             event.returnValue = false;
             event.stopImmediatePropagation();
         }
-    };
-
-    Gesture.prototype.preventDefault = function () {
-        return function() {
-            // 无效方法
-            this.isDefaultPrevented = true;
-        };
-    };
-
-    Gesture.prototype.stopPropagation = function () {
-        return function() {
-            this.isPropagationStopped = true;
-        };
-    };
-
-    Gesture.prototype.stopImmediatePropagation = function () {
-        return function() {
-            this.isImmediatePropagationStopped = true;
-        };
     };
 
     /**
@@ -722,9 +682,9 @@
     };
 
     /**
-     * 从源目标开始向上查找匹配事件监听的节点
+     * 从源目标开始向上查找匹配事件监听的节点，知道查找到 DOM 树最顶端
      */
-    Gesture.prototype.walk = function (type, proxy, target, fn) {
+    Gesture.prototype.walk = function (type, proxy, target, iterator) {
         typeMap = this.eventMap.get(proxy);
         if (!typeMap) {
             return;
@@ -744,11 +704,13 @@
             selectors = [],
             selector, length;
 
+        // 取出托管在这个元素上的事件对应的选择器
         // 将 'div .a .b.c' 分解为 ['div', '.a', '.b.c']
         each(origins, function(selector) {
             selectors.push(selector.split(' '));
         });
 
+        // 从当前元素开始一层层往上查找
         while (el) {
             each(selectors, function(selectorArray, index) {
                 length = selectorArray.length;
@@ -781,7 +743,7 @@
                 selector = origins[index];
                 items = selectorMap.get(selector);
                 level = levelMap.get(index);
-                fn.call(this, items, target, targetMap.get(index, target), level);
+                iterator.call(this, items, target, targetMap.get(index, target), level);
             }
         });
     };
@@ -936,58 +898,64 @@
             }
 
             selectorMap.each(function(items) {
-                fireEvent(items, options);
+                var length = items.length;
+                for (var i = 0; i < length; i++) {
+                    var item = items[i];
+                    fireEvent(item, options);
+                }
             });
 
         // 事件触发
         } else {
-            var currentLevel = 0;
-            this.walk(type, proxy, event.target, function(item, target, currentTarget, level) {
-                if (!options.isImmediatePropagationStopped &&
-                    (!options.isPropagationStopped ||
-                        (options.isPropagationStopped && level <= currentLevel))) {
-                    options.target = target;
-                    options.currentTarget = currentTarget;
-                    fireEvent(item, options);
-                    currentLevel = level;
-                }
+            var currentLevel = 0,
+                isPropagationStopped = false,
+                isImmediatePropagationStopped = false;
+            this.walk(type, proxy, event.target, function(items, target, currentTarget, level) {
+                each(items, function (item) {
+                    console.log(item);
+                    var fn = item.fn;
+                    if (!isImmediatePropagationStopped &&
+                        (!isPropagationStopped ||
+                            (isPropagationStopped && level <= currentLevel))) {
+                        options.target = target;
+                        options.currentTarget = currentTarget;
+                        fireEvent(item, options);
+                        currentLevel = level;
+                    }
+
+                    var fnStr = fn.toString();
+                    if (fnStr.indexOf('.stopPropagation()') > 0) {
+                        isPropagationStopped = true;
+                    }
+                    if (fnStr.indexOf('.stopImmediatePropagation()') > 0) {
+                        isImmediatePropagationStopped = true;
+                    }
+                });
             });
         }
     };
 
     /**
-     * 触发事件
+     * 派发事件，调用处理函数
      */
-    Gesture.prototype.fireEvent = function (items, options) {
-        var fn, context, args, target, iterator;
+    Gesture.prototype.fireEvent = function (item, options) {
+        var fn = item.fn,
+            context = item.context || target,
+            args, target, iterator;
+
         if (!options) {
             options = {};
         }
-        iterator = function(item) {
-            fn = item.fn;
-            context = item.context || target;
-            if (options.args) {
-                args = options.args.slice();
-            } else if (item.args) {
-                args = item.args.slice();
-            } else {
-                args = [];
-            }
-            args.unshift(options);
-            fn.apply(context, args);
-        };
-        if (isArray(items)) {
-            var length = items.length;
-            for (var i = 0; i < length; i++) {
-                var item = items[i];
-                iterator(item);
-                if (options.isImmediatePropagationStopped) {
-                    break;
-                }
-            }
+        if (options.args) {
+            args = options.args.slice();
+        } else if (item.args) {
+            args = item.args.slice();
         } else {
-            iterator(items);
+            args = [];
         }
+        args.unshift(options);
+
+        fn.apply(context, args);
     };
 
     /**
@@ -1141,12 +1109,9 @@
         if (!more) {
             more = {};
         }
-        options.isDefaultPrevented = false;
-        options.isImmediatePropagationStopped = false;
-        options.isPropagationStopped = false;
-        options.preventDefault = bind(this.preventDefault(), options);
-        options.stopPropagation = bind(this.stopPropagation(), options);
-        options.stopImmediatePropagation = bind(this.stopImmediatePropagation(), options);
+        options.preventDefault = function () {};
+        options.stopPropagation = function () {};
+        options.stopImmediatePropagation = function () {};
         // touchstart 的 event
         options.event = null;
         // touchmove 的 event
