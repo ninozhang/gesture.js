@@ -888,7 +888,6 @@
                 isImmediatePropagationStopped = false;
             this.walk(type, proxy, event.target, function(items, target, currentTarget, level) {
                 each(items, function (item) {
-                    console.log(item);
                     var fn = item.fn;
                     if (!isImmediatePropagationStopped &&
                         (!isPropagationStopped ||
@@ -944,7 +943,6 @@
      */
     Gesture.prototype.onTouchStart = function () {
         return function(event, options) {
-// console.log('touch start', options, this);
             this.touching = true;
             this.touchStart(options);
 
@@ -979,8 +977,6 @@
      */
     Gesture.prototype.onTouchMove = function () {
         return function(event, options) {
-// console.log('touch move', options, this);
-            
             if (!this.touching) {
                 return;
             }
@@ -1038,7 +1034,6 @@
      */
     Gesture.prototype.onTouchEnd = function () {
         return function(event, options) {
-// console.log('touch end', options, this);
             this.touching = false;
             this.touchEnd(options);
 
@@ -1480,10 +1475,10 @@
         }
         var dx = p1.x - p2.x,
             dy = p1.y - p2.y,
-            angle = Math.atan((dy) * -1 / (dx)) * (180 / Math.PI);console.log('origin angle:' + angle);
+            angle = Math.atan((dy) * -1 / (dx)) * (180 / Math.PI);
         if (angle < 0) {
             angle += 360;
-        }console.log('after angle:' + angle);
+        }
         return angle;
     };
 
