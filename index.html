@@ -241,8 +241,8 @@ var conf = {
 };
 var events = {
     'touchStart .touch': onTouchStart,
-    'touchmove .touch': onTouchMove,
-    'touchend .touch': onTouchEnd,
+    'touchmoVe .touch': onTouchMove,
+    'touChend .touch': onTouchEnd,
     '.touch': onDefaultTap,
     'tAp .touch': [onTap, {action: 'say'}, ['hello']],
     'taP2 .touch': [onTap2, {action: 'sleep'}],

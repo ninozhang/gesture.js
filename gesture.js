@@ -263,6 +263,7 @@
         holdTimeout: 350, // ms
 
         tap: true,
+        tapTimeout: 300, // ms
         tapMaxDistance: 15, // pixels
 
         tap2: true,
@@ -1064,7 +1065,6 @@
             this.touching = false;
             this.cancelEvent(event);
             this.touchEnd(options);
-            this.holdEnd(options);
 
             options.endEvent = event;
 
@@ -1099,6 +1099,8 @@
                     }
                 }
             }
+
+            this.holdEnd(options);
         };
     };
 
