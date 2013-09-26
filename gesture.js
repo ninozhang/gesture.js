@@ -677,7 +677,7 @@
     };
 
     /**
-     * 是否匹配选择器
+     * 检查元素是否与指定的选择器匹配
      */
     Gesture.prototype.isSelectorMatch = function (el, selector) {
         if (!el || !selector) {
@@ -685,16 +685,19 @@
         }
 
         var array = splitSelector(selector),
-            className, matches, isMatch;
-        for(var i = 0; i < array.length; i++) {
+            len = array.length,
+            matches, isMatch;
+        for (var i = 0; i < len; i++) {
             var part = array[i];
             matches = selectorExec(part);
             isMatch = false;
             
             // 处理 class
             if (matches[1] === '.') {
-                className = el.className;
+                // 提取元素的 class
+                var className = el.className;
                 if (className) {
+                    // 遍历是否包含指定的 classname
                     each(className.split(' '), function(c) {
                         if (c === matches[2]) {
                             isMatch = true;
@@ -704,6 +707,7 @@
 
             // 处理 id
             } else if (matches[1] === '#') {
+                // 判断元素的 id 是否匹配
                 isMatch = el.id === matches[2];
 
             // 处理 tagName
@@ -1359,7 +1363,7 @@
             options.lastAngle = angle;
             options.angleDiff = diff;
             direction = diff > 0 ? RIGHT : LEFT;
-console.log('angle:' + angle + ' delta:' + delta + ' direction:' + direction + ' after:' + (angle + delta));
+// console.log('angle:' + angle + ' delta:' + delta + ' direction:' + direction + ' after:' + (angle + delta));
             options = this.merge(options, {direction: direction,
                 angle: diff, delta: delta});
             this.trigger(ROTATING, options);
