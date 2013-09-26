@@ -332,31 +332,6 @@
      * }
      */
     Gesture.prototype.proxyMap = null;
-    
-    /**
-     * 取消事件默认方法或者冒泡
-     */
-    Gesture.prototype.cancelEvent = function (event, force) {
-        var defaults = this.defaults;
-        if (defaults.preventDefault === true ||
-            force === true) {
-            event.cancelBubble = true;
-            event.returnValue = false;
-            event.preventDefault();
-        }
-        if (defaults.stopPropagation === true ||
-            force === true) {
-            event.cancelBubble = true;
-            event.returnValue = false;
-            event.stopPropagation();
-        }
-        if (defaults.stopImmediatePropagation === true ||
-            force === true) {
-            event.cancelBubble = true;
-            event.returnValue = false;
-            event.stopImmediatePropagation();
-        }
-    };
 
     /**
      * 初始化
@@ -941,6 +916,7 @@
      */
     Gesture.prototype.fireEvent = function (item, options) {
         var fn = item.fn,
+            fnStr = fn.toString(),
             context = item.context || target,
             args, target, iterator;
 
@@ -956,6 +932,10 @@
         }
         args.unshift(options);
 
+        if (fnStr.indexOf('.preventDefault()') > 0 && options.event) {
+            options.event.preventDefault();
+        }
+
         fn.apply(context, args);
     };
 
@@ -966,7 +946,6 @@
         return function(event, options) {
 // console.log('touch start', options, this);
             this.touching = true;
-            this.cancelEvent(event);
             this.touchStart(options);
 
             var start = this.extractTouches(event),
@@ -1023,7 +1002,6 @@
             }
             options.lastMoveTime = Date.now();
 
-            this.cancelEvent(event);
             this.touchMove(options);
             this.hold(options, false);
 
@@ -1042,7 +1020,6 @@
                         this.dragging(options);
                     }
                 } else if (fingers === 2) {
-                    this.cancelEvent(event, true);
                     options.rotating = defaults.rotate && this.rotating(options);
                     options.pinching = defaults.pinch && this.pinching(options);
                     if (defaults.drag) {
@@ -1063,7 +1040,6 @@
         return function(event, options) {
 // console.log('touch end', options, this);
             this.touching = false;
-            this.cancelEvent(event);
             this.touchEnd(options);
 
             options.endEvent = event;
@@ -1216,7 +1192,6 @@
             var that = this;
             options.holdTimer = setTimeout(function() {
                 options.event.preventDefault();
-                that.cancelEvent(options.event, true);
                 options.holding = true;
                 that.trigger(HOLD, options);
             }, this.defaults.holdTimeout);
@@ -1260,7 +1235,6 @@
             delta = this.detectDistance(prev, current),
             deltaX = this.deltaX(prev, current),
             deltaY = this.deltaY(prev, current);
-        this.cancelEvent(event, true);
         options = this.merge(options, {direction: direction,
             distance: distance, delta: delta,
             deltaX: deltaX, deltaY: deltaY});
